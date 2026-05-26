@@ -1,0 +1,10 @@
+streamlit
+python-dotenv
+pydantic
+pandas
+pymupdf
+pymupdf4llm
+requests
+openai
+firecrawl-py
+markdown
