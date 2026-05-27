@@ -1,7 +1,12 @@
 """Term normalizer for SpecFlow AI.
 
-Loads the BMS/ICS/PLC knowledge base from bms_ics_plc_terms.md and provides
-a lightweight term list for the confidence scorer.
+Parses knowledge_base/bms_ics_plc_terms.md and builds the term list
+for the confidence scorer. Add a row to the MD table — it auto-loads here.
+
+Table format expected:
+  ## term_type
+  | Term | Weight | Scope | Variants | Notes |
+  | ... |  0.90  | all   | alias1, alias2 | ... |
 """
 
 import re
@@ -9,57 +14,104 @@ from pathlib import Path
 
 KB_PATH = Path(__file__).parents[2] / "knowledge_base" / "bms_ics_plc_terms.md"
 
-# Inline fallback term list — used when KB file is unavailable
-FALLBACK_TERMS = [
-    {"term": "BMS", "normalized_term": "BMS", "category": "BMS / BAS", "aliases": ["Building Management System", "building controls"]},
-    {"term": "BAS", "normalized_term": "BAS", "category": "BMS / BAS", "aliases": ["Building Automation System", "DDC system"]},
-    {"term": "DDC Controller", "normalized_term": "DDC Controller", "category": "Controllers", "aliases": ["DDC", "field controller", "application controller"]},
-    {"term": "RTU", "normalized_term": "RTU", "category": "HVAC Equipment", "aliases": ["rooftop unit", "packaged unit"]},
-    {"term": "AHU", "normalized_term": "AHU", "category": "HVAC Equipment", "aliases": ["air handler", "air handling unit"]},
-    {"term": "VAV", "normalized_term": "VAV", "category": "HVAC Equipment", "aliases": ["VAV box", "variable air volume"]},
-    {"term": "FCU", "normalized_term": "FCU", "category": "HVAC Equipment", "aliases": ["fan coil", "fan coil unit"]},
-    {"term": "Chiller", "normalized_term": "Chiller", "category": "HVAC Equipment", "aliases": ["CH-", "chiller plant"]},
-    {"term": "Boiler", "normalized_term": "Boiler", "category": "HVAC Equipment", "aliases": ["B-", "HW boiler"]},
-    {"term": "VFD", "normalized_term": "VFD", "category": "Controllers", "aliases": ["variable frequency drive", "VSD", "variable speed drive"]},
-    {"term": "PLC", "normalized_term": "PLC", "category": "PLC / ICS", "aliases": ["programmable logic controller"]},
-    {"term": "SCADA", "normalized_term": "SCADA", "category": "SCADA / HMI", "aliases": ["supervisory system"]},
-    {"term": "HMI", "normalized_term": "HMI", "category": "SCADA / HMI", "aliases": ["operator interface", "operator panel"]},
-    {"term": "BACnet/IP", "normalized_term": "BACnet/IP", "category": "Communication Protocols", "aliases": ["BACnet IP", "BACnet over IP"]},
-    {"term": "BACnet MS/TP", "normalized_term": "BACnet MS/TP", "category": "Communication Protocols", "aliases": ["MS/TP", "BACnet serial"]},
-    {"term": "Modbus TCP", "normalized_term": "Modbus TCP", "category": "Communication Protocols", "aliases": ["Modbus/TCP"]},
-    {"term": "Modbus RTU", "normalized_term": "Modbus RTU", "category": "Communication Protocols", "aliases": ["Modbus serial", "Modbus RS-485"]},
-    {"term": "OPC UA", "normalized_term": "OPC UA", "category": "Communication Protocols", "aliases": ["OPC-UA"]},
-    {"term": "MQTT", "normalized_term": "MQTT", "category": "Communication Protocols", "aliases": ["MQTT broker"]},
-    {"term": "Points List", "normalized_term": "Points List", "category": "Documentation Terms", "aliases": ["I/O list", "point schedule", "control point list"]},
-    {"term": "Sequence of Operation", "normalized_term": "Sequence of Operation", "category": "Documentation Terms", "aliases": ["sequence", "SOO", "operating sequence"]},
-    {"term": "Commissioning", "normalized_term": "Commissioning", "category": "Commissioning Terms", "aliases": ["Cx", "commissioning process", "functional testing"]},
-    {"term": "Functional Test", "normalized_term": "Functional Test", "category": "Commissioning Terms", "aliases": ["FPT", "functional performance test"]},
-    {"term": "Field Verification", "normalized_term": "Field Verification", "category": "Commissioning Terms", "aliases": ["point-to-point checkout", "P2P checkout", "field checkout"]},
-    {"term": "RFI", "normalized_term": "RFI", "category": "Documentation Terms", "aliases": ["request for information"]},
-    {"term": "Submittal", "normalized_term": "Submittal", "category": "Documentation Terms", "aliases": ["shop drawing", "product data", "cut sheet submittal"]},
-    {"term": "As-Built", "normalized_term": "As-Built", "category": "Documentation Terms", "aliases": ["record drawings", "as-installed"]},
-    {"term": "Retrofit", "normalized_term": "Retrofit", "category": "Retrofit Terms", "aliases": ["controls upgrade", "DDC retrofit", "system upgrade"]},
-    {"term": "VLAN", "normalized_term": "VLAN", "category": "Network Terms", "aliases": ["virtual LAN", "controls VLAN"]},
-    {"term": "Firewall", "normalized_term": "Firewall", "category": "OT Cybersecurity", "aliases": ["network firewall", "OT firewall"]},
-    {"term": "OT Network", "normalized_term": "OT Network", "category": "OT Cybersecurity", "aliases": ["controls network", "BMS network", "OT LAN"]},
-    {"term": "Damper", "normalized_term": "Damper", "category": "Actuators", "aliases": ["OA damper", "RA damper", "isolation damper"]},
-    {"term": "Valve", "normalized_term": "Valve", "category": "Actuators", "aliases": ["control valve", "CHW valve", "HW valve"]},
-    {"term": "Sensor", "normalized_term": "Sensor", "category": "Sensors", "aliases": ["transmitter", "transducer", "probe"]},
-    {"term": "Space Temperature Sensor", "normalized_term": "Space Temperature Sensor", "category": "Sensors", "aliases": ["room temperature sensor", "zone temperature", "SPT"]},
-    {"term": "Supply Air Temperature", "normalized_term": "Supply Air Temperature", "category": "Sensors", "aliases": ["discharge air temperature", "DAT", "SAT"]},
-    {"term": "Return Air Temperature", "normalized_term": "Return Air Temperature", "category": "Sensors", "aliases": ["return air temp", "RAT"]},
-    {"term": "Duct Static Pressure", "normalized_term": "Duct Static Pressure", "category": "Sensors", "aliases": ["static pressure", "duct pressure", "DSP"]},
-    {"term": "Trend Log", "normalized_term": "Trend Log", "category": "Documentation Terms", "aliases": ["trend", "trending", "data logging"]},
-    {"term": "Alarm", "normalized_term": "Alarm", "category": "Documentation Terms", "aliases": ["alert", "fault", "alarm point"]},
-]
+# term_types that should be skipped during workflow scoring
+SKIP_CATEGORIES = {"skip_term"}
+
+# term_types treated as skip/suppress signals (matched terms suppress output)
+SUPPRESS_CATEGORIES = {"skip_term"}
+
+
+def _parse_table_row(line: str) -> list[str] | None:
+    """Parse a single Markdown table row into cells."""
+    line = line.strip()
+    if not line.startswith("|") or line.startswith("| Term") or line.startswith("|---"):
+        return None
+    cells = [c.strip() for c in line.strip("|").split("|")]
+    return cells if len(cells) >= 2 else None
+
+
+def parse_kb_file(path: Path) -> list[dict]:
+    """Parse bms_ics_plc_terms.md into a list of term dicts."""
+    terms: list[dict] = []
+    current_type = "unknown"
+
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            # Detect section header: ## term_type or ## term_type (count)
+            header_match = re.match(r"^##\s+([\w_]+)", line)
+            if header_match:
+                current_type = header_match.group(1).lower()
+                continue
+
+            row = _parse_table_row(line)
+            if row is None:
+                continue
+
+            # Columns: Term | Weight | Scope | Variants | Notes
+            term = row[0] if len(row) > 0 else ""
+            weight = float(row[1]) if len(row) > 1 and row[1] else 0.5
+            scope = row[2] if len(row) > 2 else "all"
+            variants_raw = row[3] if len(row) > 3 else ""
+            notes = row[4] if len(row) > 4 else ""
+
+            if not term or term.startswith("---"):
+                continue
+
+            aliases = [v.strip() for v in variants_raw.split(",") if v.strip()] if variants_raw else []
+
+            terms.append({
+                "term": term,
+                "normalized_term": term,
+                "category": current_type,
+                "weight": weight,
+                "scope": scope,
+                "aliases": aliases,
+                "notes": notes,
+                "is_skip": current_type in SUPPRESS_CATEGORIES,
+            })
+
+    return terms
 
 
 def load_kb_terms() -> list[dict]:
-    """Load term list. Falls back to inline list if KB file is unavailable."""
-    if not KB_PATH.exists():
-        return FALLBACK_TERMS
-    return FALLBACK_TERMS  # KB file is human-readable MD; inline list is the machine form
+    """Load terms from KB file. Returns parsed list or fallback if file missing."""
+    if KB_PATH.exists():
+        try:
+            terms = parse_kb_file(KB_PATH)
+            if terms:
+                return terms
+        except Exception:
+            pass
+    return _fallback_terms()
 
 
 def get_term_list() -> list[dict]:
-    return load_kb_terms()
+    """Return the full scored term list (excludes skip_terms from workflow scoring)."""
+    return [t for t in load_kb_terms() if not t.get("is_skip")]
+
+
+def get_skip_terms() -> list[str]:
+    """Return list of term strings that should suppress output when matched."""
+    all_terms = load_kb_terms()
+    skip = []
+    for t in all_terms:
+        if t.get("is_skip"):
+            skip.append(t["term"].lower())
+            skip.extend(a.lower() for a in t.get("aliases", []))
+    return skip
+
+
+def _fallback_terms() -> list[dict]:
+    """Minimal fallback if KB file is missing or unparseable."""
+    return [
+        {"term": "BAS", "normalized_term": "BAS", "category": "platform", "weight": 1.0, "aliases": ["building automation system", "BMS"], "is_skip": False},
+        {"term": "DDC", "normalized_term": "DDC", "category": "platform", "weight": 0.9, "aliases": ["direct digital control"], "is_skip": False},
+        {"term": "ahu", "normalized_term": "AHU", "category": "equipment_type", "weight": 1.0, "aliases": ["air handling unit", "air handler", "AHU"], "is_skip": False},
+        {"term": "rtu", "normalized_term": "RTU", "category": "equipment_type", "weight": 1.0, "aliases": ["rooftop unit", "packaged unit", "RTU"], "is_skip": False},
+        {"term": "vav", "normalized_term": "VAV", "category": "equipment_type", "weight": 1.0, "aliases": ["variable air volume", "VAV box", "VAV"], "is_skip": False},
+        {"term": "PLC", "normalized_term": "PLC", "category": "plc_hardware", "weight": 1.0, "aliases": ["programmable logic controller"], "is_skip": False},
+        {"term": "BACnet", "normalized_term": "BACnet", "category": "protocol", "weight": 1.0, "aliases": ["BACnet/IP", "BACnet MS/TP", "BACnet MSTP"], "is_skip": False},
+        {"term": "Modbus", "normalized_term": "Modbus", "category": "protocol", "weight": 0.9, "aliases": ["Modbus TCP", "Modbus RTU"], "is_skip": False},
+        {"term": "point list", "normalized_term": "Point List", "category": "doc_signal", "weight": 1.0, "aliases": ["points list", "I/O list", "IO list"], "is_skip": False},
+        {"term": "commissioning", "normalized_term": "Commissioning", "category": "doc_signal", "weight": 0.9, "aliases": ["Cx", "functional testing", "checkout"], "is_skip": False},
+    ]

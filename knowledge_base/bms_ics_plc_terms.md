@@ -1,883 +1,410 @@
-# BMS / ICS / PLC Knowledge Base
+# SpecFlow AI — BMS / ICS / PLC Vocabulary
 
-> SpecFlow AI reference vocabulary. Terms listed here define *possible* detections only.
-> The source document must support every detected term. KB presence alone = confidence 0.00.
-
----
-
-## BMS
-
-**Category:** BMS / BAS
-**Definition:** Building Management System. A computer-based control system installed in a building to monitor and manage mechanical and electrical equipment.
-**Common aliases:** Building Automation System, BAS, building controls, IBMS
-**Related terms:** DDC controller, BACnet, points list, sequence of operation
-**BMS/ICS relevance:** Core system term. Triggers generic_bms_controls_review template.
-**Agent interpretation rules:** BMS and BAS are interchangeable in most documents. DDC controller alone does not confirm BMS.
-**Source-confirmed filtering rules:** Must be stated or clearly implied; "building controls" counts as alias.
-**Confidence triggers:** exact_term_match +0.35, alias_synonym_match +0.20, nearby_technical_context +0.20
-**Template trigger threshold:** 0.65
-**Example usage:** "The BMS contractor shall provide all programming and graphics."
+> Machine-readable vocabulary for SpecFlow AI confidence scoring.
+> Format: grouped by `term_type`, sorted by `weight` descending.
+> To add a term: add a row to the correct section. The scorer picks it up automatically.
+> KB presence alone = confidence 0.00. Source document must confirm every detection.
 
 ---
 
-## BAS
+## Term Type Index
 
-**Category:** BMS / BAS
-**Definition:** Building Automation System. Functionally equivalent to BMS in most usage.
-**Common aliases:** BMS, building controls, direct digital controls system
-**Related terms:** BMS, DDC controller, BACnet
-**BMS/ICS relevance:** Core system term.
-**Agent interpretation rules:** BAS and BMS are treated as aliases. Do not generate separate templates for both.
-**Source-confirmed filtering rules:** Must be explicitly stated or alias-matched.
-**Confidence triggers:** exact_term_match +0.35, alias_synonym_match +0.20
-**Template trigger threshold:** 0.65
-**Example usage:** "The BAS contractor shall perform point-to-point checkout."
-
----
-
-## DDC Controller
-
-**Category:** Controllers
-**Definition:** Direct Digital Controller. A field-level controller that executes sequences of operation for HVAC and other building systems.
-**Common aliases:** controller, field controller, unitary controller, application controller
-**Related terms:** BMS, BACnet, points list, sequence of operation
-**BMS/ICS relevance:** Primary field device in BMS systems.
-**Agent interpretation rules:** "Controller" alone is not sufficient — must be paired with a technical qualifier. Do not assume PLC from DDC.
-**Source-confirmed filtering rules:** "DDC controller" or "DDC" required; "controller" alone scores inferred only.
-**Confidence triggers:** exact_term_match +0.35, nearby_technical_context +0.20
-**Template trigger threshold:** 0.65
-**Example usage:** "Replace existing DDC controllers with new BACnet/IP controllers."
+| Term Type | Count | Purpose |
+|---|---:|---|
+| equipment_type | 28 | HVAC and mechanical equipment |
+| plc_hardware | 22 | PLC racks, CPUs, I/O modules |
+| industrial_sensor | 30 | Process and field sensors |
+| panel_component | 18 | Control panel hardware |
+| protocol | 16 | Communication protocols |
+| platform | 20 | BMS, SCADA, HMI, and software platforms |
+| controller_model | 20 | Named controller models |
+| manufacturer | 60 | Equipment and device manufacturers |
+| io_type | 6 | I/O point types |
+| signal_type | 10 | Signal and wiring types |
+| eng_unit | 9 | Engineering units |
+| doc_signal | 11 | Document and deliverable terms |
+| point_name | 30 | Standard BMS point name patterns |
+| skip_term | 8 | Terms to suppress from workflow output |
 
 ---
 
-## PLC
+## equipment_type
 
-**Category:** PLC / ICS
-**Definition:** Programmable Logic Controller. Industrial control device used in manufacturing, process, and OT environments.
-**Common aliases:** programmable controller, logic controller
-**Related terms:** HMI, SCADA, OPC UA, ladder logic, I/O module
-**BMS/ICS relevance:** Common in industrial and process systems. Not interchangeable with DDC.
-**Agent interpretation rules:** Do not assume PLC from "controller." Must be explicitly named.
-**Source-confirmed filtering rules:** "PLC" must appear explicitly. "DDC controller" does not confirm PLC.
-**Confidence triggers:** exact_term_match +0.35, alias_synonym_match +0.20
-**Template trigger threshold:** 0.70
-**Example usage:** "The PLC shall communicate via OPC UA to the SCADA system."
-
----
-
-## SCADA
-
-**Category:** SCADA / HMI
-**Definition:** Supervisory Control and Data Acquisition. Software system for monitoring and controlling industrial processes.
-**Common aliases:** supervisory system, control center
-**Related terms:** PLC, HMI, OPC UA, historian
-**BMS/ICS relevance:** OT/ICS supervisory layer above PLCs.
-**Agent interpretation rules:** SCADA is an OT system term. Do not assume SCADA in standard BMS projects.
-**Source-confirmed filtering rules:** Must be explicitly named.
-**Confidence triggers:** exact_term_match +0.35
-**Template trigger threshold:** 0.70
-**Example usage:** "The SCADA system shall display all field device statuses."
-
----
-
-## HMI
-
-**Category:** SCADA / HMI
-**Definition:** Human-Machine Interface. Operator interface for SCADA or PLC systems.
-**Common aliases:** operator interface, operator panel, touchscreen panel
-**Related terms:** SCADA, PLC, historian
-**BMS/ICS relevance:** Operator layer in OT/ICS systems.
-**Agent interpretation rules:** Do not assume HMI from BMS graphics workstation.
-**Source-confirmed filtering rules:** Must be explicitly named.
-**Confidence triggers:** exact_term_match +0.35, nearby_technical_context +0.20
-**Template trigger threshold:** 0.70
-**Example usage:** "The HMI shall provide real-time process visualization."
+| Term | Weight | Scope | Variants | Notes |
+|---|---:|---|---|---|
+| ahu | 1.00 | all | air handling unit, air handler, air-handling unit, AHU | Central HVAC air handler |
+| fcu | 1.00 | all | fan coil unit, fan-coil, fancoil, FCU | Terminal fan coil |
+| rtu | 1.00 | all | rooftop unit, rooftop units, roof top unit, packaged unit, RTU | Packaged rooftop HVAC |
+| vav | 1.00 | all | variable air volume, vav box, vav terminal, VAV | Variable volume terminal |
+| boiler | 0.90 | all | boiler, BLR, hot water boiler, steam boiler, HWB | Hydronic heating |
+| chiller | 0.90 | all | chiller, CHL, centrifugal chiller, scroll chiller, water-cooled chiller | Central cooling plant |
+| cooling tower | 0.90 | all | cooling tower, CT, condenser water tower | Condenser heat rejection |
+| doas | 0.90 | all | dedicated outdoor air, DOAS, dedicated OA unit | 100% OA ventilation unit |
+| exhaust fan | 0.90 | all | exhaust fan, EF, supply fan, SF, return fan, RF | Air movement fan |
+| fpb | 0.90 | all | fan powered box, fan-powered terminal, FPB, FTU, PIU | Fan-powered VAV terminal |
+| heat pump | 0.90 | all | heat pump, packaged heat pump, HP, ASHP, GSHP, WSHP | Reversible refrigerant system |
+| mau | 0.90 | all | makeup air unit, make-up air, make up air, MAU, MUA | Outdoor air conditioning |
+| vfd | 0.90 | all | variable frequency drive, VFD, variable speed drive, VSD, drive, inverter | Motor speed control |
+| vrf | 0.90 | all | variable refrigerant flow, VRF, variable refrigerant volume, VRV | Multi-split refrigerant system |
+| crac | 0.80 | all | computer room air conditioner, CRAC, CRAH, precision cooling | Data center cooling |
+| erv | 0.80 | all | energy recovery ventilator, ERV, heat recovery ventilator, HRV | Ventilation with heat recovery |
+| pump | 0.80 | all | pump, PMP, circulating pump, condenser pump, chilled water pump, CWP, HWP | Hydronic fluid mover |
+| split system | 0.80 | all | split system, mini split, mini-split, ductless, PTAC, PTHP | Ductless AC system |
+| unit heater | 0.80 | all | unit heater, UH, cabinet unit heater, CUH | Fin-tube space heater |
+| damper | 0.80 | all | damper, OA damper, RA damper, mixing damper, isolation damper, fire damper | Airflow control device |
+| valve | 0.80 | all | valve, control valve, CHW valve, HW valve, CW valve, 2-way valve, 3-way valve | Fluid flow control device |
+| actuator | 0.75 | all | actuator, damper actuator, valve actuator, spring return, modulating actuator | Mechanical mover |
+| humidifier | 0.75 | all | humidifier, steam humidifier, HUM, humidity control | Moisture addition |
+| heat exchanger | 0.75 | all | heat exchanger, HX, plate exchanger, shell and tube | Fluid heat transfer |
+| motor | 0.70 | all | motor, electric motor, induction motor, NEMA motor | Rotating machine |
+| compressor | 0.70 | all | compressor, scroll compressor, screw compressor, reciprocating | Refrigerant compression |
+| economizer | 0.70 | all | economizer, economiser, free cooling, OA economizer | OA-based free cooling |
+| cooling coil | 0.65 | all | cooling coil, chilled water coil, DX coil, evaporator coil | Air cooling element |
 
 ---
 
-## RTU
+## plc_hardware
 
-**Category:** HVAC Equipment
-**Definition:** Rooftop Unit. A packaged HVAC unit mounted on the roof providing heating, cooling, and ventilation.
-**Common aliases:** packaged unit, rooftop packaged unit, RTU-
-**Related terms:** supply fan, economizer, heating stage, cooling stage, discharge air temperature, BACnet
-**BMS/ICS relevance:** Primary equipment type in light commercial BMS retrofits.
-**Agent interpretation rules:** RTU in the context of HVAC means Rooftop Unit, not Remote Terminal Unit (OT context). Use document context to distinguish.
-**Source-confirmed filtering rules:** RTU tag or description must appear. Do not assume from generic "unit."
-**Confidence triggers:** exact_term_match +0.35, alias_synonym_match +0.20, nearby_technical_context +0.20
-**Template trigger threshold:** 0.70
-**Example usage:** "RTU-1 shall be provided with BACnet/IP communication."
-
----
-
-## AHU
-
-**Category:** HVAC Equipment
-**Definition:** Air Handling Unit. A large central HVAC unit that conditions and distributes air through ductwork.
-**Common aliases:** air handler, central air unit, AHU-
-**Related terms:** mixed air, return air, supply air, VFD, chilled water coil, hot water coil, economizer
-**BMS/ICS relevance:** Primary equipment in commercial and institutional BMS projects.
-**Agent interpretation rules:** Do not assume AHU exists because RTU exists. Do not assume RTU is AHU.
-**Source-confirmed filtering rules:** "AHU" or "air handler" must appear explicitly.
-**Confidence triggers:** exact_term_match +0.35, alias_synonym_match +0.20
-**Template trigger threshold:** 0.70
-**Example usage:** "AHU-2 shall be equipped with a VFD on the supply fan."
-
----
-
-## VAV
-
-**Category:** HVAC Equipment
-**Definition:** Variable Air Volume terminal unit. A terminal device that modulates airflow to a zone.
-**Common aliases:** VAV box, VAV terminal, variable volume terminal
-**Related terms:** damper, reheat coil, space temperature, duct static pressure, BACnet MS/TP
-**BMS/ICS relevance:** Very common in commercial BMS. Typically hundreds per building.
-**Agent interpretation rules:** VAV presence implies zone-level points. Do not assume reheat unless stated.
-**Source-confirmed filtering rules:** "VAV" or "variable air volume" must appear.
-**Confidence triggers:** exact_term_match +0.35, alias_synonym_match +0.20, nearby_technical_context +0.20
-**Template trigger threshold:** 0.70
-**Example usage:** "Each VAV shall have a BACnet MS/TP controller with space temperature sensor."
+| Term | Weight | Scope | Variants | Notes |
+|---|---:|---|---|---|
+| PLC | 1.00 | all | programmable logic controller, programmable controller, logic controller | Core ICS control device |
+| CPU module | 0.90 | all | CPU, processor module, PLC processor, controller CPU | PLC brain |
+| I/O module | 0.90 | all | I/O card, input module, output module, analog card, digital card | PLC I/O expansion |
+| rack | 0.85 | all | PLC rack, chassis, backplane, mounting rail | PLC mounting hardware |
+| power supply module | 0.85 | all | PS module, PLC power supply, 24VDC supply, rack PSU | PLC power feed |
+| analog input module | 0.85 | all | AI module, 4-20mA input card, analog input card | PLC analog sensing |
+| analog output module | 0.85 | all | AO module, 4-20mA output card, analog output card | PLC analog control |
+| digital input module | 0.85 | all | DI module, discrete input card, binary input module | PLC digital sensing |
+| digital output module | 0.85 | all | DO module, relay output card, discrete output module | PLC digital control |
+| communication module | 0.85 | all | comm module, network card, Ethernet module, EtherNet/IP card, PROFINET card | PLC network interface |
+| safety PLC | 0.85 | all | safety controller, fail-safe PLC, SIL controller, safety relay controller | Safety-rated PLC |
+| remote I/O | 0.80 | all | remote I/O rack, distributed I/O, RIO, ET200, Point I/O | Distributed PLC I/O |
+| HMI panel | 0.80 | all | HMI, operator panel, touchscreen, HMI terminal, operator interface | PLC operator display |
+| motion controller | 0.75 | all | servo drive, motion axis, servo controller, drive controller | PLC motion control |
+| field panel | 0.75 | all | control panel, MCP, local control panel, field control panel | On-site panel |
+| edge controller | 0.70 | all | edge device, IIoT gateway, edge compute, PAC | Edge computing device |
+| PAC | 0.70 | all | programmable automation controller, PAC | Advanced PLC form factor |
+| DCS | 0.70 | all | distributed control system, process control system | Large-scale process control |
+| RTU | 0.70 | ics | remote terminal unit, field RTU, SCADA RTU | Remote data acquisition |
+| IED | 0.65 | all | intelligent electronic device, protection relay, IED | Smart field device |
+| safety relay | 0.65 | all | safety relay module, E-stop relay, SIL relay | Safety circuit device |
+| terminal block | 0.60 | all | terminal strip, DIN rail terminal, screw terminal | Panel wiring connection |
 
 ---
 
-## FCU
+## industrial_sensor
 
-**Category:** HVAC Equipment
-**Definition:** Fan Coil Unit. A terminal HVAC device with a fan and coil, used for zone-level heating/cooling.
-**Common aliases:** fan coil, terminal unit
-**Related terms:** chilled water valve, hot water valve, space temperature, BACnet
-**BMS/ICS relevance:** Common in hotel, multifamily, and commercial buildings.
-**Agent interpretation rules:** Do not assume FCU from generic "terminal unit."
-**Source-confirmed filtering rules:** "FCU" or "fan coil" must appear.
-**Confidence triggers:** exact_term_match +0.35, alias_synonym_match +0.20
-**Template trigger threshold:** 0.70
-**Example usage:** "FCU-101 shall be controlled by a BACnet fan coil controller."
-
----
-
-## Exhaust Fan
-
-**Category:** HVAC Equipment
-**Definition:** A fan that exhausts air from a space to the outside.
-**Common aliases:** EF, exhaust unit, toilet exhaust, parking exhaust
-**Related terms:** fan status, fan command, VFD, occupancy, BMS
-**BMS/ICS relevance:** Monitored and commanded by BMS; often interlocked with AHU.
-**Agent interpretation rules:** Do not assume VFD unless stated.
-**Source-confirmed filtering rules:** "exhaust fan" or "EF-" tag must appear.
-**Confidence triggers:** exact_term_match +0.35, alias_synonym_match +0.20
-**Template trigger threshold:** 0.65
-**Example usage:** "EF-1 shall be enabled by the BMS occupancy schedule."
-
----
-
-## Pump
-
-**Category:** HVAC Equipment
-**Definition:** A mechanical device that circulates water through hydronic systems.
-**Common aliases:** CWP, HWP, chilled water pump, hot water pump, condenser water pump
-**Related terms:** VFD, differential pressure, flow sensor, enable command, status
-**BMS/ICS relevance:** Common in central plant BMS systems.
-**Agent interpretation rules:** Pump type (CWP, HWP) should be inferred from context if not explicit.
-**Source-confirmed filtering rules:** "pump" or pump tag must appear.
-**Confidence triggers:** exact_term_match +0.35, nearby_technical_context +0.20
-**Template trigger threshold:** 0.65
-**Example usage:** "CWP-1 shall be commanded by the BMS with status feedback."
+| Term | Weight | Scope | Variants | Notes |
+|---|---:|---|---|---|
+| temperature sensor | 1.00 | all | temp sensor, temperature transmitter, RTD, thermocouple, NTC, thermistor | Temperature measurement |
+| pressure sensor | 1.00 | all | pressure transmitter, pressure transducer, PT, pressure switch, gauge | Pressure measurement |
+| flow meter | 1.00 | all | flow transmitter, flowmeter, FT, magnetic flowmeter, ultrasonic flow, turbine flow, vortex flow | Flow measurement |
+| level sensor | 0.90 | all | level transmitter, LT, level switch, float switch, ultrasonic level | Tank or vessel level |
+| CO2 sensor | 0.90 | all | CO2 transmitter, carbon dioxide sensor, IAQ sensor, CO2 meter | Indoor air quality |
+| humidity sensor | 0.90 | all | humidity transmitter, RH sensor, humidity/temp sensor, moisture sensor | Relative humidity |
+| differential pressure | 0.90 | all | DP transmitter, differential pressure sensor, DP switch, DSP, BSP | Pressure difference |
+| current sensor | 0.90 | all | current transformer, CT, current switch, ampere meter, power monitor | Electrical current |
+| occupancy sensor | 0.85 | all | occupancy detector, PIR sensor, motion sensor, presence sensor | Occupancy detection |
+| CO sensor | 0.85 | all | carbon monoxide sensor, CO transmitter, CO detector | CO detection |
+| thermocouple | 0.85 | all | T/C, type K thermocouple, type J, type T, type E | High-temp sensing |
+| RTD | 0.85 | all | resistance temperature detector, Pt100, Pt1000, PT100, PT1000 | Precision temperature |
+| air quality sensor | 0.85 | all | IAQ sensor, VOC sensor, particulate sensor, PM2.5, air quality monitor | Multi-parameter IAQ |
+| liquid temperature | 0.80 | all | pipe temp sensor, immersion sensor, well sensor, pipe strap sensor | Fluid temperature |
+| duct sensor | 0.80 | all | duct temperature sensor, duct probe, insertion sensor, averaging element | In-duct measurement |
+| outdoor air sensor | 0.80 | all | OA sensor, outdoor temp, ambient sensor, weather station | Outdoor conditions |
+| vibration sensor | 0.75 | all | vibration transmitter, accelerometer, vibration switch | Machine health |
+| speed sensor | 0.75 | all | RPM sensor, tachometer, encoder, proximity sensor, hall effect | Rotational speed |
+| limit switch | 0.75 | all | position switch, end-of-travel switch, valve position switch | Mechanical position |
+| condensate sensor | 0.70 | all | condensate pan switch, float switch, overflow sensor | Condensate detection |
+| smoke detector | 0.70 | all | smoke sensor, duct smoke detector, air sampling, ionization detector | Smoke detection |
+| freeze stat | 0.70 | all | low limit thermostat, coil freeze protection, freeze protection | Freeze protection |
+| power meter | 0.70 | all | energy meter, kWh meter, power monitor, demand meter, BTU meter | Energy measurement |
+| gas detector | 0.70 | all | refrigerant detector, natural gas sensor, leak detector, gas monitor | Gas leak detection |
+| pH sensor | 0.65 | all | pH transmitter, pH probe, water quality | Water chemistry |
+| conductivity sensor | 0.65 | all | conductivity transmitter, TDS sensor | Water quality |
+| light sensor | 0.65 | all | light level sensor, photocell, lux sensor, daylight sensor | Lighting control |
+| door contact | 0.60 | all | door switch, magnetic contact, door status, tamper switch | Access/security |
+| water leak sensor | 0.60 | all | leak detection cable, WLD, moisture rope, flood sensor | Water intrusion |
+| airflow switch | 0.60 | all | sail switch, airflow sensor, differential pressure switch, paddle switch | Fan proof |
 
 ---
 
-## Chiller
+## panel_component
 
-**Category:** HVAC Equipment
-**Definition:** A refrigeration machine that cools water for distribution through a building's cooling system.
-**Common aliases:** CH, chiller plant, water-cooled chiller, air-cooled chiller
-**Related terms:** chilled water supply, chilled water return, condenser water, CWP, cooling tower, BMS
-**BMS/ICS relevance:** Central plant equipment, high-priority BMS integration point.
-**Agent interpretation rules:** Do not assume chiller from "cooling" alone.
-**Source-confirmed filtering rules:** "chiller" or "CH-" must appear.
-**Confidence triggers:** exact_term_match +0.35, alias_synonym_match +0.20
-**Template trigger threshold:** 0.70
-**Example usage:** "The chiller shall communicate to the BMS via BACnet/IP."
-
----
-
-## Boiler
-
-**Category:** HVAC Equipment
-**Definition:** A heating device that produces hot water or steam for building heating systems.
-**Common aliases:** HW boiler, steam boiler, B-
-**Related terms:** hot water supply, hot water return, HWP, condensate, BMS
-**BMS/ICS relevance:** Central plant heating equipment.
-**Agent interpretation rules:** Do not assume boiler from "heating" alone.
-**Source-confirmed filtering rules:** "boiler" or "B-" must appear.
-**Confidence triggers:** exact_term_match +0.35, alias_synonym_match +0.20
-**Template trigger threshold:** 0.70
-**Example usage:** "B-1 shall be enabled by the BMS heating plant sequence."
+| Term | Weight | Scope | Variants | Notes |
+|---|---:|---|---|---|
+| circuit breaker | 0.90 | all | breaker, MCB, MCCB, branch breaker, thermal magnetic | Overcurrent protection |
+| contactor | 0.90 | all | motor contactor, IEC contactor, line contactor, starter contactor | Motor switching |
+| relay | 0.85 | all | control relay, SPDT relay, DPDT relay, interlock relay, pilot relay | Signal switching |
+| transformer | 0.85 | all | control transformer, 120/24VAC, step-down transformer, multi-tap transformer | Control power |
+| power supply | 0.85 | all | 24VDC supply, DC power supply, SMPS, panel power supply | DC power conversion |
+| disconnect switch | 0.85 | all | safety switch, motor disconnect, lockout, fusible disconnect | Power isolation |
+| fuse | 0.80 | all | control fuse, fuse block, fuse holder, fuse protection | Short circuit protection |
+| overload relay | 0.80 | all | motor overload, thermal overload, electronic overload, OL | Motor overload protection |
+| soft starter | 0.80 | all | reduced voltage starter, RVS, motor soft start | Motor starting |
+| UPS | 0.80 | all | uninterruptible power supply, battery backup, panel UPS, backup power | Power backup |
+| surge protector | 0.75 | all | SPD, surge protection device, transient protection, lightning protection | Surge protection |
+| enclosure | 0.75 | all | NEMA 1 enclosure, NEMA 4 enclosure, panel box, steel enclosure, Hoffman box | Panel housing |
+| DIN rail | 0.70 | all | mounting rail, 35mm DIN, DIN rail mount | Component mounting |
+| terminal strip | 0.70 | all | terminal block, screw terminal, field terminal, wiring terminal | Panel termination |
+| pilot light | 0.65 | all | indicator light, status light, LED indicator, signal light | Status indication |
+| selector switch | 0.65 | all | HOA switch, hand-off-auto, rotary switch, mode switch | Manual override |
+| push button | 0.65 | all | E-stop, emergency stop, momentary push button, reset button | Manual control |
+| horn strobe | 0.60 | all | alarm horn, audible visual alarm, strobe, AV device | Alarm annunciation |
 
 ---
 
-## VFD
+## protocol
 
-**Category:** Controllers
-**Definition:** Variable Frequency Drive. An electronic device that controls motor speed by varying supply frequency.
-**Common aliases:** variable speed drive, VSD, inverter, adjustable frequency drive, AFD
-**Related terms:** fan speed command, pump speed command, duct static, differential pressure
-**BMS/ICS relevance:** Controlled via analog output or BACnet from BMS.
-**Agent interpretation rules:** Do not assume VFD from "fan" or "pump" unless explicitly stated.
-**Source-confirmed filtering rules:** "VFD" or alias must appear.
-**Confidence triggers:** exact_term_match +0.35, alias_synonym_match +0.20
-**Template trigger threshold:** 0.65
-**Example usage:** "The VFD shall receive a 0-10V speed command from the DDC controller."
-
----
-
-## Damper
-
-**Category:** Actuators
-**Definition:** A movable plate inside ductwork that controls airflow.
-**Common aliases:** OA damper, RA damper, mixing damper, isolation damper
-**Related terms:** actuator, damper position, modulating control, on/off control
-**BMS/ICS relevance:** Controlled by BMS via analog or digital output.
-**Agent interpretation rules:** Do not assume modulating control unless stated — may be two-position.
-**Source-confirmed filtering rules:** "damper" must appear.
-**Confidence triggers:** exact_term_match +0.35, nearby_technical_context +0.20
-**Template trigger threshold:** 0.60
-**Example usage:** "The OA damper shall modulate to maintain mixed air setpoint."
+| Term | Weight | Scope | Variants | Notes |
+|---|---:|---|---|---|
+| BACnet | 1.00 | all | BACnet/IP, BACnet IP, BACnet MS/TP, BACnet MSTP, bacnet | Primary BAS protocol |
+| MS/TP | 1.00 | all | MSTP, MS-TP, mstp, master slave token passing, BACnet serial | BACnet field bus |
+| Modbus | 0.90 | all | Modbus TCP, Modbus RTU, Modbus RS-485, modbus | Industrial register protocol |
+| EtherNet/IP | 0.90 | all | Ethernet/IP, EIP, CIP, common industrial protocol | Rockwell/Allen-Bradley network |
+| PROFINET | 0.90 | all | profinet, PROFINET IO, PN | Siemens industrial Ethernet |
+| PROFIBUS | 0.85 | all | profibus, PROFIBUS DP, PROFIBUS PA | Siemens field bus |
+| OPC UA | 0.85 | all | OPC-UA, OPC Unified Architecture, OPC server | Secure OT data exchange |
+| MQTT | 0.80 | all | MQTT broker, MQTT protocol | IoT messaging protocol |
+| DeviceNet | 0.80 | all | device net, CIP DeviceNet | Rockwell field bus |
+| LON | 0.80 | all | LonWorks, LON, FTT10, FTT-10, LonTalk | Legacy BAS protocol |
+| EtherCAT | 0.75 | all | ethercat, EtherCAT network | High-speed Beckhoff protocol |
+| CC-Link | 0.75 | all | CC-Link IE, CC-Link field | Mitsubishi field bus |
+| Foundation Fieldbus | 0.75 | all | FF, FOUNDATION fieldbus, H1, HSE | Process industry protocol |
+| DNP3 | 0.75 | all | DNP 3.0, Distributed Network Protocol | Utility SCADA protocol |
+| KNX | 0.65 | all | KNX, EIB, KNX/IP | Building lighting/HVAC |
+| IP | 0.60 | all | Ethernet, TCP/IP, LAN, network, IP network | Network transport layer |
 
 ---
 
-## Valve
+## platform
 
-**Category:** Actuators
-**Definition:** A device that controls flow of water or steam through a pipe.
-**Common aliases:** control valve, CHW valve, HW valve, CW valve, 2-way, 3-way
-**Related terms:** actuator, valve position, modulating, on/off, coil
-**BMS/ICS relevance:** Controlled by BMS via analog or digital output.
-**Agent interpretation rules:** Do not assume modulating unless stated.
-**Source-confirmed filtering rules:** "valve" must appear.
-**Confidence triggers:** exact_term_match +0.35, nearby_technical_context +0.20
-**Template trigger threshold:** 0.60
-**Example usage:** "The CHW valve shall modulate to maintain discharge air temperature setpoint."
-
----
-
-## BACnet/IP
-
-**Category:** Communication Protocols
-**Definition:** BACnet over IP networks. The primary protocol for BMS communication over Ethernet/LAN.
-**Common aliases:** BACnet IP, BACnet over Ethernet, BACnet/IP network
-**Related terms:** BMS, DDC controller, BBMD, network trunk, IP address, subnet
-**BMS/ICS relevance:** Primary modern BMS communication protocol.
-**Agent interpretation rules:** Do not assume BACnet/IP from "network" or "Ethernet" alone.
-**Source-confirmed filtering rules:** "BACnet/IP" must appear explicitly.
-**Confidence triggers:** exact_term_match +0.35, alias_synonym_match +0.20
-**Template trigger threshold:** 0.70
-**Example usage:** "The controller shall communicate via BACnet/IP to the BAS server."
+| Term | Weight | Scope | Variants | Notes |
+|---|---:|---|---|---|
+| BAS | 1.00 | all | building automation system, building management system, BMS, controls system | Core BAS platform |
+| DDC | 0.90 | all | direct digital control, digital controls, building automation | DDC control system |
+| Niagara | 0.90 | climatec | Niagara Framework, Niagara 4, N4, Tridium Niagara | Tridium standard |
+| Metasys | 0.90 | all | Metasys, JCI Metasys, Johnson Controls Metasys | JCI front-end |
+| BACtalk | 0.90 | alerton | BACtalk, Alerton BACtalk, VLC, VLCP | Alerton primary platform |
+| Studio 5000 | 0.90 | all | Logix 5000, RSLogix 5000, Studio5000, Rockwell Studio | Allen-Bradley PLC software |
+| TIA Portal | 0.90 | all | TIA, Siemens TIA, Step 7, STEP 7, TIA Portal V16 | Siemens PLC software |
+| FactoryTalk | 0.85 | all | FactoryTalk View, FT View, RSView, Rockwell SCADA | Rockwell SCADA/HMI |
+| Ignition | 0.85 | all | Inductive Automation Ignition, Ignition SCADA, Ignition HMI | Modern SCADA platform |
+| Wonderware | 0.85 | all | Wonderware InTouch, Wonderware System Platform, AVEVA InTouch | SCADA HMI platform |
+| iFIX | 0.80 | all | GE iFIX, Proficy iFIX, HMI/SCADA iFIX | GE SCADA platform |
+| Desigo | 0.80 | all | Desigo CC, Desigo Insight, PXC, Siemens Desigo | Siemens BMS platform |
+| Compass | 0.80 | alerton | Alerton Compass, Compass software | Alerton front-end |
+| WEBs | 0.80 | climatec | WEBs AX, WEBs-AX, Honeywell WEBs | Honeywell Climatec alternate |
+| HVAC | 0.80 | all | heating ventilating air conditioning, mechanical system, HVAC system | Mechanical domain |
+| OSIsoft PI | 0.75 | all | PI System, AVEVA PI, OSIsoft, PI historian | Data historian platform |
+| GX Works | 0.75 | all | GX Works 2, GX Works 3, Mitsubishi GX | Mitsubishi PLC software |
+| Sysmac Studio | 0.75 | all | Sysmac, Omron Sysmac, NJ/NX series software | Omron PLC software |
+| Unity Pro | 0.75 | all | Unity Pro, EcoStruxure Control Expert, Schneider Unity | Schneider PLC software |
+| Citect | 0.70 | all | Citect SCADA, AVEVA Citect, CitectSCADA | SCADA platform |
 
 ---
 
-## BACnet MS/TP
+## controller_model
 
-**Category:** Communication Protocols
-**Definition:** BACnet Master-Slave/Token-Passing. Serial BACnet protocol used for field-level device communication.
-**Common aliases:** MS/TP, BACnet serial, RS-485 BACnet
-**Related terms:** VAV, FCU, field bus, trunk cable, baud rate
-**BMS/ICS relevance:** Used for VAV and FCU controller networks.
-**Agent interpretation rules:** Do not assume MS/TP from "serial" or "RS-485" alone.
-**Source-confirmed filtering rules:** "BACnet MS/TP" or "MS/TP" must appear.
-**Confidence triggers:** exact_term_match +0.35, alias_synonym_match +0.20
-**Template trigger threshold:** 0.70
-**Example usage:** "VAV controllers shall communicate via BACnet MS/TP to the floor-level controller."
-
----
-
-## Modbus TCP
-
-**Category:** Communication Protocols
-**Definition:** Modbus over TCP/IP. Used for industrial and OT system integration.
-**Common aliases:** Modbus/TCP, Modbus over Ethernet
-**Related terms:** PLC, VFD, meter, register map, slave address
-**BMS/ICS relevance:** Common for VFD, meter, and PLC integration to BMS.
-**Agent interpretation rules:** Do not assume Modbus from "TCP" or "network" alone.
-**Source-confirmed filtering rules:** "Modbus TCP" must appear explicitly.
-**Confidence triggers:** exact_term_match +0.35
-**Template trigger threshold:** 0.70
-**Example usage:** "The VFD shall communicate via Modbus TCP to the BMS gateway."
+| Term | Weight | Scope | Variants | Notes |
+|---|---:|---|---|---|
+| ECY-303 | 1.00 | controlworks | ECY303 | Distech AI=3 DI=3 |
+| ECY-S1000 | 1.00 | controlworks | ECY-S1000 3 mod, S1000 3 mod | Distech AI=3 DI=5 AO=5 DO=1 |
+| ECY-TU-203 | 1.00 | controlworks | ECY-203 | Distech AI=1 DI=3 AO=2 DO=8 |
+| ECY-VAV | 1.00 | controlworks | ECY-VAV com sensor | Distech VAV controller |
+| JACE | 1.00 | climatec | JACE-8000, JACE 8000, web supervisor | Tridium supervisory controller |
+| ControlLogix | 0.90 | all | CLX, 1756, Allen-Bradley ControlLogix | Rockwell large PLC |
+| CompactLogix | 0.90 | all | 1769, Allen-Bradley CompactLogix, CLX compact | Rockwell mid-range PLC |
+| MicroLogix | 0.85 | all | MicroLogix 1100, MicroLogix 1400, ML1400 | Rockwell small PLC |
+| S7-300 | 0.90 | all | Siemens S7-300, CPU 315, CPU 314 | Siemens mid-range PLC |
+| S7-400 | 0.90 | all | Siemens S7-400, CPU 414, CPU 416 | Siemens large PLC |
+| S7-1200 | 0.90 | all | Siemens S7-1200, CPU 1212C, CPU 1214C | Siemens compact PLC |
+| S7-1500 | 0.90 | all | Siemens S7-1500, CPU 1511, CPU 1516 | Siemens advanced PLC |
+| BCM | 0.90 | alerton | BCM-256, BCM-256L, building controller | Alerton building controller |
+| Smart Equipment Controller | 0.90 | all | JCI TEC, SEC, SmartEquip, TEC3000 | JCI RTU controller |
+| VAVII | 0.90 | alerton | VAV II, VAVII, Alerton VAV | Alerton VAV controller |
+| NAE | 0.80 | all | NAE-5500, NAE35, Network Automation Engine | JCI supervisory |
+| NCE | 0.80 | all | NCE25, Network Control Engine | JCI field controller |
+| VLC | 0.80 | alerton | VLC-850, VLC-1000, Alerton VLC | Alerton VAV controller |
+| Q Series | 0.75 | all | Mitsubishi Q Series, QCPU | Mitsubishi large PLC |
+| CJ Series | 0.75 | all | Omron CJ2, CJ1, CS1 | Omron mid-range PLC |
 
 ---
 
-## Modbus RTU
+## manufacturer
 
-**Category:** Communication Protocols
-**Definition:** Modbus over serial RS-485. Used for legacy and industrial device integration.
-**Common aliases:** Modbus serial, Modbus RS-485
-**Related terms:** RS-485, serial, slave address, register map
-**BMS/ICS relevance:** Legacy integration protocol.
-**Agent interpretation rules:** Do not assume Modbus RTU from "serial" or "RS-485" alone.
-**Source-confirmed filtering rules:** "Modbus RTU" must appear explicitly.
-**Confidence triggers:** exact_term_match +0.35
-**Template trigger threshold:** 0.70
-**Example usage:** "The flow meter shall be read via Modbus RTU."
-
----
-
-## OPC UA
-
-**Category:** Communication Protocols
-**Definition:** OPC Unified Architecture. Industrial protocol for secure data exchange between OT systems.
-**Common aliases:** OPC-UA, OPC Unified Architecture
-**Related terms:** PLC, SCADA, historian, data server
-**BMS/ICS relevance:** Used in OT/ICS environments for PLC-to-SCADA integration.
-**Agent interpretation rules:** Do not assume OPC UA in standard BMS projects.
-**Source-confirmed filtering rules:** "OPC UA" must appear explicitly.
-**Confidence triggers:** exact_term_match +0.35
-**Template trigger threshold:** 0.70
-**Example usage:** "The PLC data shall be published via OPC UA to the historian."
-
----
-
-## MQTT
-
-**Category:** Communication Protocols
-**Definition:** Message Queuing Telemetry Transport. Lightweight IoT/OT messaging protocol.
-**Common aliases:** MQTT broker
-**Related terms:** IoT, edge device, cloud gateway, broker
-**BMS/ICS relevance:** Emerging in smart building and IoT edge applications.
-**Agent interpretation rules:** Do not assume MQTT in traditional BMS projects.
-**Source-confirmed filtering rules:** "MQTT" must appear explicitly.
-**Confidence triggers:** exact_term_match +0.35
-**Template trigger threshold:** 0.70
-**Example usage:** "The edge device shall publish sensor data via MQTT."
-
----
-
-## AI (Analog Input)
-
-**Category:** I/O Types
-**Definition:** Analog Input. A BMS/PLC point that reads a continuous signal (e.g., 0-10V, 4-20mA, or resistance).
-**Common aliases:** analog input, AI point
-**Related terms:** sensor, temperature, pressure, humidity, CO2
-**BMS/ICS relevance:** Standard I/O type in all BMS controllers.
-**Agent interpretation rules:** "AI" in a points list context means Analog Input, not Artificial Intelligence.
-**Source-confirmed filtering rules:** Must appear in a points list or I/O schedule context.
-**Confidence triggers:** exact_term_match +0.35, document_section_relevance +0.10
-**Template trigger threshold:** 0.65
-**Example usage:** "AI-1: Discharge Air Temperature, 10K thermistor"
-
----
-
-## AO (Analog Output)
-
-**Category:** I/O Types
-**Definition:** Analog Output. A BMS/PLC point that sends a continuous control signal to a device.
-**Common aliases:** analog output, AO point
-**Related terms:** VFD speed command, valve position, damper position
-**BMS/ICS relevance:** Standard I/O type.
-**Agent interpretation rules:** Used for modulating control of actuators and drives.
-**Source-confirmed filtering rules:** Must appear in points list context.
-**Confidence triggers:** exact_term_match +0.35, document_section_relevance +0.10
-**Template trigger threshold:** 0.65
-**Example usage:** "AO-1: Supply Fan Speed Command, 0-10V"
+| Term | Weight | Scope | Variants | Notes |
+|---|---:|---|---|---|
+| Alerton | 1.00 | alerton | Alerton Technologies | BAS manufacturer |
+| Climatec | 1.00 | climatec | Climatec Inc | BAS contractor |
+| Johnson Controls | 1.00 | all | JCI, York, Metasys, Johnson Controls Inc | Major BAS/HVAC OEM |
+| Siemens | 1.00 | all | Siemens Building Technologies, SBT, Landis & Gyr | Major BAS/PLC OEM |
+| Rockwell Automation | 1.00 | all | Allen-Bradley, Allen Bradley, Rockwell, A-B | Major PLC OEM |
+| Schneider Electric | 0.95 | all | Schneider, Square D, Modicon, APC, AVEVA | Major PLC/BAS/SCADA OEM |
+| Honeywell | 0.90 | all | Honeywell Analytics, Resideo, Honeywell Home | Major BAS/sensor OEM |
+| Tridium | 0.90 | climatec | Tridium Inc, Niagara Framework | JACE platform |
+| Distech Controls | 0.90 | controlworks | Distech, ECY, ECB, ECL | Controlworks preferred BAS |
+| ABB | 0.90 | all | ABB Ltd, ABB drives, ABB robotics | Drives and PLC OEM |
+| Mitsubishi Electric | 0.90 | all | Mitsubishi, MELSEC, GOT HMI | Japanese PLC/drive OEM |
+| Omron | 0.90 | all | Omron Automation, SYSMAC | Japanese PLC OEM |
+| Emerson | 0.90 | all | Emerson Electric, Fisher Controls, DeltaV, Rosemount | Process control OEM |
+| Trane | 0.90 | all | Trane Technologies, Trane HVAC | HVAC OEM |
+| Carrier | 0.90 | all | Carrier Global, Carrier HVAC | HVAC OEM |
+| Daikin | 0.85 | all | Daikin Industries, Daikin Applied | VRF/HVAC OEM |
+| Belimo | 0.85 | all | Belimo Aircontrols | Actuator specialist |
+| Dwyer | 0.85 | controlworks | Dwyer Instruments | Sensors and instrumentation |
+| Setra | 0.85 | controlworks | Setra Systems Inc | Pressure sensors |
+| Greystone | 0.85 | controlworks | Greystone Energy Systems | BAS sensors |
+| Senva | 0.85 | controlworks | Senva Inc | BAS sensors |
+| Veris | 0.85 | controlworks | Veris Industries | Current sensors and meters |
+| BAPI | 0.85 | controlworks | Building Automation Products Inc | BAS sensors |
+| Mamac | 0.85 | climatec | MAMAC Systems | Sensors and transducers |
+| Beckhoff | 0.85 | all | Beckhoff Automation, TwinCAT | PC-based PLC OEM |
+| Phoenix Contact | 0.85 | all | Phoenix Contact GmbH | Terminal blocks and I/O |
+| Wago | 0.80 | all | WAGO Corporation | Modular I/O |
+| AutomationDirect | 0.80 | all | Automation Direct, CLICK PLC, Do-more | Low-cost PLC vendor |
+| GE | 0.80 | all | GE Automation, GE Fanuc, Proficy | PLC/HMI/SCADA OEM |
+| Keyence | 0.80 | all | Keyence Corp | Sensors and vision |
+| Omega | 0.80 | all | Omega Engineering | Sensors and instrumentation |
+| Vaisala | 0.80 | all | Vaisala Inc | Humidity/temp sensors |
+| Eaton | 0.80 | all | Eaton Corporation | Electrical/power products |
+| Danfoss | 0.80 | all | Danfoss Drives | VFDs and refrigeration |
+| Yaskawa | 0.80 | all | Yaskawa Electric, Yaskawa drives | VFD and servo OEM |
+| Rittal | 0.75 | all | Rittal GmbH | Enclosures |
+| Hoffman | 0.75 | climatec | Hoffman Enclosures | Panel enclosures |
+| Saginaw Control | 0.75 | climatec | Saginaw Control & Engineering | Panel enclosures |
+| Opto 22 | 0.75 | all | Opto22, groov | PAC and I/O OEM |
+| Red Lion | 0.75 | all | Red Lion Controls | HMI and protocol gateways |
+| Moxa | 0.75 | all | Moxa Technologies | Industrial networking |
+| Advantech | 0.75 | all | Advantech Co | Industrial computers |
+| Contemporary Controls | 0.75 | controlworks | Contemporary Controls | BACnet routers/gateways |
+| Functional Devices | 0.75 | controlworks | Functional Devices Inc, RIB relays | Relay modules |
+| Kele | 0.75 | controlworks | Kele Inc | BAS components distributor |
+| Onicon | 0.75 | climatec | Onicon Inc | Flow meters |
+| DENT | 0.75 | controlworks | Dent Instruments, DENT Instruments | Power meters |
+| Ebtron | 0.70 | all | Ebtron Inc | Airflow measurement |
+| VFD manufacturer | 0.70 | all | drive manufacturer, inverter manufacturer | Generic VFD reference |
+| Loytec | 0.70 | all | Loytec Electronics | BACnet devices |
+| Sievert | 0.70 | all | Sievert Larsen | Valve actuators |
+| Hays | 0.70 | all | Hays Cleveland | Flow measurement |
+| Sage Metering | 0.70 | climatec | Sage Metering Inc | Gas flow meters |
+| Sierra Monitor | 0.70 | climatec | Sierra Monitor Corporation | Gas detection |
+| Palo Alto Networks | 0.70 | all | Palo Alto | OT network security |
+| Cisco | 0.70 | all | Cisco Systems | Network switches/routers |
+| Optigo Networks | 0.70 | climatec | Optigo | BACnet network optimization |
 
 ---
 
-## BI (Binary Input)
+## io_type
 
-**Category:** I/O Types
-**Definition:** Binary Input. A BMS/PLC point that reads a two-state signal (on/off, open/closed).
-**Common aliases:** digital input, DI, binary input, status input
-**Related terms:** fan status, pump status, alarm contact, flow switch
-**BMS/ICS relevance:** Standard I/O type.
-**Agent interpretation rules:** Status points are typically BI.
-**Source-confirmed filtering rules:** Must appear in points list context.
-**Confidence triggers:** exact_term_match +0.35
-**Template trigger threshold:** 0.65
-**Example usage:** "BI-1: Supply Fan Status, dry contact"
+| Term | Weight | Scope | Variants | Notes |
+|---|---:|---|---|---|
+| AI | 1.00 | all | analog input, analogue input | Continuous signal input |
+| AO | 1.00 | all | analog output, analogue output | Continuous signal output |
+| DI | 1.00 | all | digital input, binary input, discrete input, BI | Two-state input |
+| DO | 1.00 | all | digital output, binary output, discrete output, BO, relay output | Two-state output |
+| UI | 0.90 | all | universal input | Configurable input (Distech) |
+| UO | 0.90 | all | universal output | Configurable output (Distech) |
 
 ---
 
-## BO (Binary Output)
+## signal_type
 
-**Category:** I/O Types
-**Definition:** Binary Output. A BMS/PLC point that sends a two-state command signal.
-**Common aliases:** digital output, DO, binary output, relay output
-**Related terms:** fan command, pump command, enable, relay
-**BMS/ICS relevance:** Standard I/O type.
-**Agent interpretation rules:** Enable/command points are typically BO.
-**Source-confirmed filtering rules:** Must appear in points list context.
-**Confidence triggers:** exact_term_match +0.35
-**Template trigger threshold:** 0.65
-**Example usage:** "BO-1: Supply Fan Enable, 24VAC relay"
-
----
-
-## UI (Universal Input)
-
-**Category:** I/O Types
-**Definition:** Universal Input. A configurable BMS input point that can accept multiple signal types.
-**Common aliases:** universal input, configurable input
-**Related terms:** sensor, temperature, pressure
-**BMS/ICS relevance:** Common on modern DDC controllers.
-**Agent interpretation rules:** UI may replace AI/BI depending on controller platform.
-**Source-confirmed filtering rules:** Must appear in points list or I/O schedule context.
-**Confidence triggers:** exact_term_match +0.35
-**Template trigger threshold:** 0.65
-**Example usage:** "UI-1: Space Temperature, 10K thermistor or 4-20mA"
+| Term | Weight | Scope | Variants | Notes |
+|---|---:|---|---|---|
+| 0-10V | 1.00 | all | 0 to 10V, 0-10 VDC, 10V analog | Standard analog voltage |
+| 4-20mA | 1.00 | all | 4 to 20mA, 4-20 mA, milliamp, mA loop | Standard industrial current |
+| 0-5V | 0.90 | all | 0 to 5V, 0-5 VDC | Low-voltage analog |
+| 10K Type II | 0.90 | all | 10K Type 2, 10K thermistor, 10 kilohm | Common BAS temp sensor |
+| 10K Type III | 0.90 | all | 10K Type 3 | Alternate thermistor curve |
+| NI1000 | 0.90 | distech | NI1000 @ 0C, NI1000 @ 22C, nickel sensor | Distech preferred temp sensor |
+| PT1000 | 0.85 | all | PT 1000, platinum RTD, Pt1000 | RTD temperature sensor |
+| Digital | 0.80 | all | discrete, dry contact, binary, on/off, 24VAC | Two-state signal |
+| Network | 0.80 | all | BACnet object, Modbus register, networked point | Protocol-based signal |
+| Resistance | 0.70 | all | resistive input, ohm, thermistor | Resistance-based signal |
 
 ---
 
-## UO (Universal Output)
+## eng_unit
 
-**Category:** I/O Types
-**Definition:** Universal Output. A configurable BMS output point.
-**Common aliases:** universal output, configurable output
-**Related terms:** actuator, valve, damper, VFD
-**BMS/ICS relevance:** Common on modern DDC controllers.
-**Source-confirmed filtering rules:** Must appear in points list or I/O schedule context.
-**Confidence triggers:** exact_term_match +0.35
-**Template trigger threshold:** 0.65
-**Example usage:** "UO-1: Heating Valve Position, 0-10V"
-
----
-
-## Sensor
-
-**Category:** Sensors
-**Definition:** A device that measures a physical variable and converts it to an electrical signal.
-**Common aliases:** transmitter, transducer, probe
-**Related terms:** temperature sensor, pressure sensor, humidity sensor, CO2 sensor, AI point
-**BMS/ICS relevance:** Fundamental to all BMS systems.
-**Agent interpretation rules:** "Sensor" alone does not confirm a specific type.
-**Source-confirmed filtering rules:** Must appear with context to trigger specific point generation.
-**Confidence triggers:** exact_term_match +0.35, nearby_technical_context +0.20
-**Template trigger threshold:** 0.60
-**Example usage:** "Install a new discharge air temperature sensor on RTU-1."
+| Term | Weight | Scope | Variants | Notes |
+|---|---:|---|---|---|
+| CFM | 0.90 | all | cubic feet per minute, airflow, air flow | Airflow volume |
+| GPM | 0.90 | all | gallons per minute, flow rate | Liquid flow rate |
+| Tons | 0.80 | all | refrigeration tons, cooling tons, ton of cooling | Cooling capacity |
+| inWC | 0.80 | all | inches water column, in. WC, in WG, static pressure | Duct/pipe pressure |
+| kW | 0.80 | all | kilowatt, kilowatts, power, electrical demand | Power |
+| psi | 0.80 | all | PSI, pounds per square inch | Pressure |
+| °F | 0.80 | all | deg F, degrees fahrenheit, temperature | Temperature |
+| % | 0.70 | all | percent, percentage, humidity, RH, position | Percentage |
+| kWh | 0.70 | all | kilowatt hour, energy, consumption | Energy |
 
 ---
 
-## Space Temperature Sensor
+## doc_signal
 
-**Category:** Sensors
-**Definition:** A sensor that measures the air temperature in an occupied zone.
-**Common aliases:** room temperature sensor, zone temperature sensor, space temp, SPT
-**Related terms:** thermostat, VAV, FCU, setpoint, occupied mode
-**BMS/ICS relevance:** One of the most common BMS points.
-**Agent interpretation rules:** Implies zone-level control. May also include setpoint adjustment.
-**Source-confirmed filtering rules:** Must appear explicitly or as clear alias.
-**Confidence triggers:** exact_term_match +0.35, alias_synonym_match +0.20
-**Template trigger threshold:** 0.65
-**Example usage:** "Each VAV box shall have a wall-mounted space temperature sensor."
-
----
-
-## Supply Air Temperature
-
-**Category:** Sensors
-**Definition:** The temperature of air leaving a cooling or heating coil, measured in the supply ductwork.
-**Common aliases:** discharge air temperature, DAT, SAT, supply air temp
-**Related terms:** AHU, RTU, setpoint, cooling coil, heating coil
-**BMS/ICS relevance:** Key control variable for AHU and RTU sequences.
-**Source-confirmed filtering rules:** Must appear explicitly or as clear alias.
-**Confidence triggers:** exact_term_match +0.35, alias_synonym_match +0.20
-**Template trigger threshold:** 0.65
-**Example usage:** "The RTU shall maintain a discharge air temperature setpoint of 55°F."
+| Term | Weight | Scope | Variants | Notes |
+|---|---:|---|---|---|
+| point list | 1.00 | all | points list, IO list, I/O list, point schedule, points schedule | I/O deliverable |
+| sequence | 1.00 | all | sequence of operations, sequence of control, control sequence, operating sequence, SOO | Controls narrative |
+| submittal | 1.00 | all | submittals, shop drawing, cut sheet, product data, product submittal | Approval deliverable |
+| commissioning | 0.90 | all | CX, Cx, functional testing, point-to-point, checkout, startup, P2P | Commissioning deliverable |
+| model number | 0.90 | all | model no, model #, catalog number, cat no, part number, manufacturer | Product identification |
+| schedule | 0.90 | all | equipment schedule, point schedule, IO schedule, controller schedule | Tabular deliverable |
+| specification | 0.90 | all | spec section, division 25, Section 25, controls specification, BAS specification | Design specification |
+| riser | 0.80 | all | riser diagram, riser drawing, network riser | Network diagram |
+| setpoint | 0.80 | all | set point, control setpoint, operating setpoint, SP | Control reference |
+| PID | 0.70 | all | proportional integral derivative, PID loop, feedback control | Control loop type |
+| floor plan | 0.70 | all | floor plan, plan view, mechanical plan, HVAC plan | Drawing type |
 
 ---
 
-## Return Air Temperature
+## point_name
 
-**Category:** Sensors
-**Definition:** Temperature of air returning from the conditioned space to the air handler.
-**Common aliases:** return air temp, RAT
-**Related terms:** AHU, mixed air, economizer, return air humidity
-**BMS/ICS relevance:** Used in economizer and mixed air control.
-**Source-confirmed filtering rules:** Must appear explicitly or as clear alias.
-**Confidence triggers:** exact_term_match +0.35, alias_synonym_match +0.20
-**Template trigger threshold:** 0.65
-**Example usage:** "The BMS shall monitor return air temperature at AHU-1."
-
----
-
-## Mixed Air Temperature
-
-**Category:** Sensors
-**Definition:** Temperature of the mixture of outside air and return air before the cooling coil.
-**Common aliases:** mixed air temp, MAT
-**Related terms:** AHU, economizer, OA damper, RA damper
-**BMS/ICS relevance:** Key economizer control variable.
-**Source-confirmed filtering rules:** Must appear explicitly.
-**Confidence triggers:** exact_term_match +0.35, alias_synonym_match +0.20
-**Template trigger threshold:** 0.65
-**Example usage:** "The mixed air temperature shall be used for economizer low limit control."
-
----
-
-## Duct Static Pressure
-
-**Category:** Sensors
-**Definition:** The static pressure measured in a supply air duct, used to control VFD speed.
-**Common aliases:** static pressure, duct pressure, DSP
-**Related terms:** VFD, supply fan, VAV, setpoint
-**BMS/ICS relevance:** Primary variable for supply fan VFD control.
-**Source-confirmed filtering rules:** Must appear explicitly.
-**Confidence triggers:** exact_term_match +0.35, alias_synonym_match +0.20
-**Template trigger threshold:** 0.65
-**Example usage:** "The supply fan VFD shall maintain duct static pressure setpoint."
+| Term | Weight | Scope | Variants | Notes |
+|---|---:|---|---|---|
+| DaTmp | 0.90 | controlworks | discharge air temp, DAT | Discharge air temperature |
+| SFCmd | 0.90 | controlworks | supply fan command, SF enable | Supply fan on/off command |
+| SFSts | 0.90 | controlworks | supply fan status, SF status | Supply fan run status |
+| ZnTmp | 0.90 | controlworks | zone temp, space temp, ZT | Zone temperature |
+| OadPos | 0.90 | controlworks | OA damper position, OAD | Outdoor air damper position |
+| HVSig | 0.85 | controlworks | heating valve signal, HV signal | Heating valve control |
+| CVSig | 0.85 | controlworks | cooling valve signal, CV signal | Cooling valve control |
+| DSP | 0.85 | controlworks | duct static pressure | Duct static pressure |
+| BSP | 0.85 | controlworks | building static pressure | Building static pressure |
+| MaTmp | 0.85 | controlworks | mixed air temp, MAT | Mixed air temperature |
+| RaTmp | 0.85 | controlworks | return air temp, RAT | Return air temperature |
+| EFCmd | 0.85 | controlworks | exhaust fan command, EF enable | Exhaust fan command |
+| EFSts | 0.85 | controlworks | exhaust fan status | Exhaust fan status |
+| FltDP | 0.80 | controlworks | filter differential pressure, filter DP | Filter dirty status |
+| SFanDP | 0.80 | controlworks | supply fan differential pressure | Fan pressure differential |
+| HwvSig | 0.80 | controlworks | hot water valve signal | Hot water valve control |
+| OaFlow | 0.80 | controlworks | outdoor airflow, OA CFM | Outdoor airflow |
+| DaSmk | 0.80 | controlworks | discharge air smoke, DA smoke | Duct smoke detector |
+| ZnCO2 | 0.80 | controlworks | zone CO2, space CO2 | Zone CO2 |
+| Smoke | 0.80 | controlworks | smoke detector, smoke alarm | Smoke detection |
+| LoLim | 0.75 | controlworks | low limit, freeze protection | Low limit thermostat |
+| OaAlm | 0.75 | controlworks | outdoor air alarm | OA quality alarm |
+| EF1Spd | 0.75 | controlworks | exhaust fan speed, EF speed | EF VFD speed |
+| SF1Spd | 0.75 | controlworks | supply fan speed, SF speed | SF VFD speed command |
+| CCDaTmp | 0.75 | controlworks | chilled water discharge air temp | Cooling coil discharge |
+| HCRTmp | 0.75 | controlworks | heating coil return temp | Heating coil return |
+| CVPos | 0.70 | controlworks | cooling valve position feedback | Cooling valve feedback |
+| HVPos | 0.70 | controlworks | heating valve position feedback | Heating valve feedback |
+| Zone Temp | 0.70 | controlworks | zone temperature, space temperature | Generic zone temp |
+| Airflow | 0.70 | controlworks | airflow CFM, zone airflow | Zone airflow |
 
 ---
 
-## Sequence of Operation
-
-**Category:** Documentation Terms
-**Definition:** A written description of how a controlled system operates through its various modes.
-**Common aliases:** sequence, SOO, controls sequence, operating sequence
-**Related terms:** setpoint, mode, alarm, BMS, points list
-**BMS/ICS relevance:** Core deliverable for BMS programming.
-**Agent interpretation rules:** Implies the document is controls-scope.
-**Source-confirmed filtering rules:** Must appear explicitly or as alias.
-**Confidence triggers:** exact_term_match +0.35, alias_synonym_match +0.20
-**Template trigger threshold:** 0.60
-**Example usage:** "Refer to the sequence of operation for complete control logic."
-
----
-
-## Points List
-
-**Category:** Documentation Terms
-**Definition:** A tabulated list of all BMS input/output points for a system or project.
-**Common aliases:** I/O list, point schedule, control point list, points schedule
-**Related terms:** AI, AO, BI, BO, UI, UO, controller, BMS
-**BMS/ICS relevance:** Primary deliverable for BMS design and programming.
-**Agent interpretation rules:** Points list generation requires at least 0.70 confidence on the associated equipment.
-**Source-confirmed filtering rules:** Must appear explicitly or be clearly implied by I/O schedule context.
-**Confidence triggers:** exact_term_match +0.35, alias_synonym_match +0.20, document_section_relevance +0.10
-**Template trigger threshold:** 0.70
-**Example usage:** "The contractor shall submit a points list for Owner review."
-
----
-
-## Trend Log
-
-**Category:** Documentation Terms
-**Definition:** A BMS record of a point's values over time for analysis and diagnostics.
-**Common aliases:** trend, trending, data logging, historical data
-**Related terms:** BMS, historian, alarm, setpoint
-**BMS/ICS relevance:** Common commissioning and diagnostic requirement.
-**Source-confirmed filtering rules:** Must appear explicitly.
-**Confidence triggers:** exact_term_match +0.35, alias_synonym_match +0.20
-**Template trigger threshold:** 0.60
-**Example usage:** "The BMS shall trend all critical zone temperatures at 15-minute intervals."
-
----
-
-## Alarm
-
-**Category:** Documentation Terms
-**Definition:** A BMS notification triggered when a monitored point exceeds a defined limit.
-**Common aliases:** alert, fault, alarm point
-**Related terms:** BMS, trend log, notification, setpoint
-**BMS/ICS relevance:** Standard deliverable in all BMS systems.
-**Source-confirmed filtering rules:** Must appear explicitly.
-**Confidence triggers:** exact_term_match +0.35, alias_synonym_match +0.20
-**Template trigger threshold:** 0.55
-**Example usage:** "A high-temperature alarm shall be generated when discharge air exceeds 90°F."
-
----
-
-## Retrofit
-
-**Category:** Retrofit Terms
-**Definition:** The replacement or upgrade of existing BMS equipment in an operating building.
-**Common aliases:** controls upgrade, DDC retrofit, controller replacement, system upgrade
-**Related terms:** controller replacement, as-built, existing controller, network trunk
-**BMS/ICS relevance:** Primary project type for SpecFlow AI.
-**Agent interpretation rules:** Retrofit context means existing conditions must be verified.
-**Source-confirmed filtering rules:** Must appear explicitly or be clearly implied by "existing" + "replace" context.
-**Confidence triggers:** exact_term_match +0.35, alias_synonym_match +0.20, nearby_technical_context +0.20
-**Template trigger threshold:** 0.60
-**Example usage:** "This project is a BMS retrofit replacing existing pneumatic controls."
-
----
-
-## Controller Replacement
-
-**Category:** Retrofit Terms
-**Definition:** The physical replacement of an existing BMS controller with a new unit.
-**Common aliases:** swap, replace controller, new controller, DDC replacement
-**Related terms:** retrofit, as-built, field verification, wiring
-**BMS/ICS relevance:** Core scope item in retrofit projects.
-**Source-confirmed filtering rules:** Must appear explicitly or be implied by "replace existing controllers."
-**Confidence triggers:** exact_term_match +0.35, alias_synonym_match +0.20
-**Template trigger threshold:** 0.65
-**Example usage:** "Replace existing controllers with new BACnet/IP DDC controllers."
-
----
-
-## Commissioning
-
-**Category:** Commissioning Terms
-**Definition:** The systematic process of verifying that a BMS system is installed and operating per design intent.
-**Common aliases:** Cx, commissioning process, systems commissioning, functional testing
-**Related terms:** functional test, field verification, sequence of operation, setpoint verification
-**BMS/ICS relevance:** End-of-project deliverable.
-**Agent interpretation rules:** Commissioning implies a formal functional test process.
-**Source-confirmed filtering rules:** Must appear explicitly or as alias.
-**Confidence triggers:** exact_term_match +0.35, alias_synonym_match +0.20
-**Template trigger threshold:** 0.65
-**Example usage:** "The BAS contractor shall perform commissioning prior to Owner acceptance."
-
----
-
-## Functional Test
-
-**Category:** Commissioning Terms
-**Definition:** A test that verifies the operation of a controlled system through all modes defined in the sequence of operation.
-**Common aliases:** functional performance test, FPT, functional verification
-**Related terms:** commissioning, sequence of operation, setpoint, alarm
-**BMS/ICS relevance:** Core commissioning deliverable.
-**Source-confirmed filtering rules:** Must appear explicitly.
-**Confidence triggers:** exact_term_match +0.35, alias_synonym_match +0.20
-**Template trigger threshold:** 0.65
-**Example usage:** "A functional test shall be performed for each AHU before substantial completion."
-
----
-
-## Field Verification
-
-**Category:** Commissioning Terms
-**Definition:** Physical verification of installed equipment, wiring, and network connections in the field.
-**Common aliases:** point-to-point checkout, P2P checkout, field checkout, site verification
-**Related terms:** commissioning, controller location, wiring verification, network connectivity
-**BMS/ICS relevance:** Pre-commissioning activity.
-**Source-confirmed filtering rules:** Must appear explicitly or as alias.
-**Confidence triggers:** exact_term_match +0.35, alias_synonym_match +0.20
-**Template trigger threshold:** 0.50
-**Example usage:** "The BAS contractor shall perform field verification of all points prior to commissioning."
-
----
-
-## RFI
-
-**Category:** Documentation Terms
-**Definition:** Request for Information. A formal question submitted to the design team to clarify scope or design intent.
-**Common aliases:** request for information, RFI log, field question
-**Related terms:** submittal, clarification, scope gap, design issue
-**BMS/ICS relevance:** Common in design-build and retrofit projects.
-**Source-confirmed filtering rules:** Must appear explicitly or be implied by ambiguous scope.
-**Confidence triggers:** exact_term_match +0.35, alias_synonym_match +0.20
-**Template trigger threshold:** 0.60
-**Example usage:** "An RFI shall be submitted regarding the existing controller wiring condition."
-
----
-
-## Submittal
-
-**Category:** Documentation Terms
-**Definition:** Documentation submitted by a contractor for design team review and approval before installation.
-**Common aliases:** shop drawing, product data, cut sheet submittal, O&M submittal
-**Related terms:** cut sheet, product data, O&M manual, approval
-**BMS/ICS relevance:** Required deliverable for all BMS projects.
-**Source-confirmed filtering rules:** Must appear explicitly.
-**Confidence triggers:** exact_term_match +0.35, alias_synonym_match +0.20
-**Template trigger threshold:** 0.60
-**Example usage:** "Submit controller product data for Engineer review prior to procurement."
-
----
-
-## As-Built
-
-**Category:** Documentation Terms
-**Definition:** Drawings and documentation that reflect the actual installed conditions after construction.
-**Common aliases:** record drawings, as-installed, as-built drawings
-**Related terms:** CAD, wiring diagram, points list, controller schedule
-**BMS/ICS relevance:** Required closeout deliverable.
-**Source-confirmed filtering rules:** Must appear explicitly.
-**Confidence triggers:** exact_term_match +0.35, alias_synonym_match +0.20
-**Template trigger threshold:** 0.60
-**Example usage:** "The contractor shall provide as-built drawings within 30 days of substantial completion."
-
----
-
-## Network Trunk
-
-**Category:** Communication Protocols
-**Definition:** A main communication cable segment connecting BMS controllers on a BACnet MS/TP or similar network.
-**Common aliases:** trunk cable, BACnet trunk, field bus trunk, communication trunk
-**Related terms:** BACnet MS/TP, controller, field bus, termination
-**BMS/ICS relevance:** Physical network infrastructure for field-level BMS.
-**Source-confirmed filtering rules:** Must appear explicitly.
-**Confidence triggers:** exact_term_match +0.35, alias_synonym_match +0.20
-**Template trigger threshold:** 0.60
-**Example usage:** "The BACnet MS/TP network trunk shall be home-run to the floor controller."
-
----
-
-## OT Network
-
-**Category:** OT Cybersecurity
-**Definition:** Operational Technology network. The network layer connecting industrial control systems and BMS devices.
-**Common aliases:** controls network, BMS network, field network, OT LAN
-**Related terms:** VLAN, segmentation, firewall, Purdue Model, BACnet
-**BMS/ICS relevance:** Core concept in OT cybersecurity for BMS and ICS.
-**Agent interpretation rules:** OT network is distinct from IT network. Do not assume OT segmentation exists unless documented.
-**Source-confirmed filtering rules:** Must appear explicitly or be clearly implied by cybersecurity context.
-**Confidence triggers:** exact_term_match +0.35, alias_synonym_match +0.20, nearby_technical_context +0.20
-**Template trigger threshold:** 0.65
-**Example usage:** "The BMS shall reside on a dedicated OT network segment."
-
----
-
-## Purdue Model
-
-**Category:** OT Cybersecurity
-**Definition:** A reference model for ICS/OT network segmentation that divides systems into hierarchical levels (0-5).
-**Common aliases:** ISA-95 model, Purdue reference model, ICS security zones
-**Related terms:** OT network, VLAN, segmentation, firewall, DMZ
-**BMS/ICS relevance:** Standard OT security architecture reference.
-**Agent interpretation rules:** Only relevant in OT cybersecurity or ICS context documents.
-**Source-confirmed filtering rules:** Must appear explicitly.
-**Confidence triggers:** exact_term_match +0.35
-**Template trigger threshold:** 0.65
-**Example usage:** "Controls network design shall follow the Purdue Model segmentation approach."
-
----
-
-## Segmentation
-
-**Category:** OT Cybersecurity
-**Definition:** The division of a network into isolated segments to limit the spread of security threats.
-**Common aliases:** network segmentation, zone segmentation, micro-segmentation
-**Related terms:** VLAN, firewall, OT network, Purdue Model
-**BMS/ICS relevance:** Core OT security practice.
-**Source-confirmed filtering rules:** Must appear in a network or cybersecurity context.
-**Confidence triggers:** exact_term_match +0.35, nearby_technical_context +0.20
-**Template trigger threshold:** 0.65
-**Example usage:** "BMS controls network shall be segmented from corporate IT."
-
----
-
-## VLAN
-
-**Category:** Network Terms
-**Definition:** Virtual Local Area Network. A logical subdivision of a physical network.
-**Common aliases:** virtual LAN, network VLAN, controls VLAN
-**Related terms:** OT network, segmentation, switch, firewall, BACnet/IP
-**BMS/ICS relevance:** Used to isolate BMS traffic from IT traffic.
-**Agent interpretation rules:** Do not assume VLAN from "network" alone.
-**Source-confirmed filtering rules:** "VLAN" must appear explicitly.
-**Confidence triggers:** exact_term_match +0.35
-**Template trigger threshold:** 0.65
-**Example usage:** "Assign all BMS controllers to VLAN 100."
-
----
-
-## Firewall
-
-**Category:** OT Cybersecurity
-**Definition:** A network device that controls traffic between network zones based on defined rules.
-**Common aliases:** network firewall, OT firewall, DMZ firewall, perimeter firewall
-**Related terms:** VLAN, segmentation, OT network, remote access
-**BMS/ICS relevance:** Required at the IT/OT boundary for secure BMS architectures.
-**Source-confirmed filtering rules:** "Firewall" must appear explicitly.
-**Confidence triggers:** exact_term_match +0.35
-**Template trigger threshold:** 0.65
-**Example usage:** "A firewall shall be installed between the BMS VLAN and the corporate network."
-
----
-
-## Remote Access
-
-**Category:** OT Cybersecurity
-**Definition:** The ability to connect to a BMS or OT system from outside the local network.
-**Common aliases:** remote connection, VPN access, remote monitoring, remote support
-**Related terms:** VPN, firewall, OT network, service account
-**BMS/ICS relevance:** Common in BMS service contracts. Major OT security risk if uncontrolled.
-**Agent interpretation rules:** Remote access implies need for VPN and access control review.
-**Source-confirmed filtering rules:** Must appear explicitly.
-**Confidence triggers:** exact_term_match +0.35, nearby_technical_context +0.20
-**Template trigger threshold:** 0.60
-**Example usage:** "Remote access to the BMS shall be restricted to authorized personnel via VPN."
-
----
-
-## Service Account
-
-**Category:** OT Cybersecurity
-**Definition:** A non-personal account used by software services or automated systems to access resources.
-**Common aliases:** system account, application account, service user
-**Related terms:** remote access, firewall, least privilege, BMS, SCADA
-**BMS/ICS relevance:** OT security practice — service accounts should follow least privilege.
-**Source-confirmed filtering rules:** Must appear explicitly.
-**Confidence triggers:** exact_term_match +0.35
-**Template trigger threshold:** 0.60
-**Example usage:** "BMS service accounts shall follow least privilege access principles."
-
----
-
-## Least Privilege
-
-**Category:** OT Cybersecurity
-**Definition:** A security principle that limits user and system accounts to only the access required for their function.
-**Common aliases:** minimum necessary access, principle of least privilege
-**Related terms:** service account, remote access, firewall, OT network
-**BMS/ICS relevance:** Core OT cybersecurity requirement for BMS and ICS.
-**Source-confirmed filtering rules:** Must appear explicitly.
-**Confidence triggers:** exact_term_match +0.35
-**Template trigger threshold:** 0.60
-**Example usage:** "All BMS user accounts shall adhere to least privilege access controls."
-
----
-
-## Actuator
-
-**Category:** Actuators
-**Definition:** A device that receives a control signal and moves a mechanical component such as a damper or valve.
-**Common aliases:** motor actuator, valve actuator, damper actuator, spring return actuator
-**Related terms:** damper, valve, AO, UO, modulating, on/off
-**BMS/ICS relevance:** Physical output device in BMS systems.
-**Source-confirmed filtering rules:** Must appear explicitly.
-**Confidence triggers:** exact_term_match +0.35, nearby_technical_context +0.20
-**Template trigger threshold:** 0.60
-**Example usage:** "Provide a modulating actuator on the chilled water valve."
-
----
-
-## Relay
-
-**Category:** Electrical/Control Panel Terms
-**Definition:** An electrically operated switch used to control a load circuit from a control signal.
-**Common aliases:** interlock relay, control relay, pilot relay
-**Related terms:** BO, binary output, fan command, enable circuit
-**BMS/ICS relevance:** Used in control panels for binary output isolation.
-**Source-confirmed filtering rules:** Must appear explicitly.
-**Confidence triggers:** exact_term_match +0.35
-**Template trigger threshold:** 0.55
-**Example usage:** "A relay shall be provided in the control panel for fan enable isolation."
-
----
-
-## Transformer
-
-**Category:** Electrical/Control Panel Terms
-**Definition:** An electrical device that changes voltage levels. Common in BMS for 24VAC control power.
-**Common aliases:** control transformer, 120/24V transformer, step-down transformer
-**Related terms:** control panel, 24VAC, power supply, BMS
-**BMS/ICS relevance:** Standard component in DDC control panels.
-**Source-confirmed filtering rules:** Must appear explicitly.
-**Confidence triggers:** exact_term_match +0.35
-**Template trigger threshold:** 0.55
-**Example usage:** "A 120/24VAC transformer shall power the DDC controller."
-
----
-
-## Thermostat
-
-**Category:** Sensors
-**Definition:** A wall-mounted device that senses space temperature and may include setpoint adjustment and occupancy override.
-**Common aliases:** room thermostat, digital thermostat, programmable thermostat
-**Related terms:** space temperature sensor, setpoint, occupied mode, FCU, VAV
-**BMS/ICS relevance:** May be standalone or integrated with BMS.
-**Agent interpretation rules:** Traditional thermostat is not a DDC controller — do not assume BACnet from thermostat.
-**Source-confirmed filtering rules:** Must appear explicitly.
-**Confidence triggers:** exact_term_match +0.35, alias_synonym_match +0.20
-**Template trigger threshold:** 0.60
-**Example usage:** "Replace existing thermostats with BACnet-enabled communicating thermostats."
+## skip_term
+
+| Term | Weight | Scope | Variants | Notes |
+|---|---:|---|---|---|
+| estimate | 1.00 | all | job estimate, project estimate, cost estimate, budget estimate | Financial — skip |
+| takeoff | 1.00 | all | material takeoff, quantity takeoff, QTO | Estimating — skip |
+| JSF | 0.90 | all | job summary form, job summary | Internal form — skip |
+| budget | 0.80 | all | budgetary, budget price, ROM | Financial — skip |
+| invoice | 0.70 | all | billing, payment, accounts payable | Billing — skip |
+| purchase order | 0.70 | all | PO, P.O., purchase order number | Procurement — skip |
+| warranty | 0.60 | all | warranty period, warranty claim | Legal — skip |
+| insurance | 0.60 | all | liability insurance, certificate of insurance | Legal — skip |
