@@ -152,7 +152,12 @@ with tabs[0]:
             )
             st.session_state.workflow_items = workflow_items
 
-        st.success("Done. Use the tabs above to explore results.")
+        if result.get("status") == "ocr_required":
+            st.warning("Document parsed as scanned/image-heavy. OCR is required before workflow extraction will be useful.")
+        elif result.get("status") == "failed":
+            st.error("Parse failed. Check the inspection tab and parser warnings for details.")
+        else:
+            st.success("Done. Use the tabs above to explore results.")
 
         if result.get("errors"):
             for err in result["errors"]:
@@ -172,6 +177,16 @@ with tabs[1]:
         if r.get("errors"):
             for e in r["errors"]:
                 st.warning(e)
+
+        if r.get("status") == "ocr_required":
+            st.info(
+                "This document looks scanned or image-heavy. SpecFlow did not find enough embedded text to build a useful workflow package yet."
+            )
+            pages_needing_ocr = (r.get("metadata") or {}).get("pages_needing_ocr", [])
+            if pages_needing_ocr:
+                st.markdown(f"**Pages needing OCR:** {', '.join(str(p) for p in pages_needing_ocr)}")
+        elif r.get("status") == "failed":
+            st.error("SpecFlow could not extract usable Markdown from this file.")
 
         meta = r.get("metadata", {})
         if meta:
@@ -227,8 +242,11 @@ with tabs[4]:
 with tabs[5]:
     st.header("Workflow Output")
     wi = st.session_state.workflow_items
+    parse_result = st.session_state.parse_result
 
-    if wi:
+    if parse_result and parse_result.get("status") == "ocr_required":
+        st.info("Workflow output is intentionally limited because this upload needs OCR before source-confirmed extraction can proceed.")
+    elif wi:
         # Summary
         st.info(wi.get("summary", ""))
 

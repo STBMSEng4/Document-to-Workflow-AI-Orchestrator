@@ -42,7 +42,9 @@ def _classify_pdf(pages_text: list[str]) -> str:
 
 
 def requires_ocr(result: dict) -> bool:
-    return result.get("pdf_classification") in ("scanned_pdf", "image_heavy_pdf")
+    if result.get("pdf_classification") in ("scanned_pdf", "image_heavy_pdf"):
+        return True
+    return bool(result.get("pages_needing_ocr") or result.get("pagesNeedingOcr"))
 
 
 def save_raw_markdown(markdown: str, filename: str) -> str:
@@ -140,11 +142,22 @@ def inspect_pdf(file_path: str) -> dict:
             errors.append(f"Fallback extraction error: {fallback_exc}")
             classification = "empty_or_failed_parse"
 
-    if not raw_markdown.strip():
+    ocr_needed = requires_ocr(
+        {
+            "pdf_classification": classification,
+            "pagesNeedingOcr": [] if inspector_result is None else inspector_result.get("pagesNeedingOcr", []),
+        }
+    )
+
+    if not raw_markdown.strip() and not ocr_needed:
         classification = "empty_or_failed_parse" if not errors else classification
 
-    ocr_needed = requires_ocr({"pdf_classification": classification})
-    status = "ocr_required" if ocr_needed else ("failed" if not raw_markdown.strip() else "success")
+    if ocr_needed and not raw_markdown.strip():
+        errors.append(
+            "PDF appears to be scanned or image-heavy. OCR text is required before workflow extraction can continue."
+        )
+
+    status = "ocr_required" if ocr_needed and not raw_markdown.strip() else ("failed" if not raw_markdown.strip() else "success")
     metadata = build_pdf_metadata(file_path, raw_markdown, classification, inspector_result)
 
     if raw_markdown:
