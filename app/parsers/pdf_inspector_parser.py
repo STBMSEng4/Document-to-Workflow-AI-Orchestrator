@@ -1,20 +1,34 @@
 """PDF Inspector parser for SpecFlow AI.
 
-Uses pymupdf4llm for local PDF inspection and Markdown extraction.
-Does NOT use the Firecrawl web crawling API.
+Uses the local Firecrawl pdf-inspector package for PDF classification and
+Markdown extraction. Does NOT use the Firecrawl web crawling API.
 """
 
 from __future__ import annotations
 
 import hashlib
+import json
+import shutil
+import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
 OUTPUTS_RAW = Path(__file__).parents[2] / "outputs" / "markdown" / "raw"
+NODE_HELPER = Path(__file__).with_name("pdf_inspector_node.mjs")
+
+
+def _normalize_pdf_type(pdf_type: str | None) -> str:
+    mapping = {
+        "TextBased": "text_pdf",
+        "Scanned": "scanned_pdf",
+        "ImageBased": "image_heavy_pdf",
+        "Mixed": "mixed_pdf",
+    }
+    return mapping.get(pdf_type or "", "empty_or_failed_parse")
 
 
 def _classify_pdf(pages_text: list[str]) -> str:
-    """Heuristic classification based on extracted text density."""
+    """Heuristic fallback classification based on extracted text density."""
     total_chars = sum(len(p) for p in pages_text)
     avg_per_page = total_chars / max(len(pages_text), 1)
 
@@ -28,7 +42,7 @@ def _classify_pdf(pages_text: list[str]) -> str:
 
 
 def requires_ocr(result: dict) -> bool:
-    return result.get("pdf_classification") in ("scanned_pdf",)
+    return result.get("pdf_classification") in ("scanned_pdf", "image_heavy_pdf")
 
 
 def save_raw_markdown(markdown: str, filename: str) -> str:
@@ -38,7 +52,12 @@ def save_raw_markdown(markdown: str, filename: str) -> str:
     return str(out_path)
 
 
-def build_pdf_metadata(file_path: str, raw_markdown: str, classification: str) -> dict:
+def build_pdf_metadata(
+    file_path: str,
+    raw_markdown: str,
+    classification: str,
+    inspector_result: dict | None = None,
+) -> dict:
     path = Path(file_path)
     file_hash = hashlib.md5(path.read_bytes()).hexdigest() if path.exists() else ""
     return {
@@ -49,15 +68,47 @@ def build_pdf_metadata(file_path: str, raw_markdown: str, classification: str) -
         "pdf_classification": classification,
         "char_count": len(raw_markdown),
         "word_count": len(raw_markdown.split()),
+        "pdf_inspector_confidence": None if inspector_result is None else inspector_result.get("confidence"),
+        "pages_needing_ocr": [] if inspector_result is None else inspector_result.get("pagesNeedingOcr", []),
     }
 
 
+def _run_pdf_inspector(file_path: str) -> dict:
+    node_binary = shutil.which("node")
+    if not node_binary:
+        raise RuntimeError("Node.js is not installed. Install Node.js and @firecrawl/pdf-inspector.")
+    if not NODE_HELPER.exists():
+        raise RuntimeError(f"Missing Node helper: {NODE_HELPER}")
+
+    completed = subprocess.run(
+        [node_binary, str(NODE_HELPER), file_path],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    if completed.returncode != 0:
+        stderr = completed.stderr.strip() or completed.stdout.strip() or "Unknown pdf-inspector error"
+        try:
+            parsed_error = json.loads(stderr)
+            stderr = parsed_error.get("error", stderr)
+        except json.JSONDecodeError:
+            pass
+        raise RuntimeError(stderr)
+
+    try:
+        return json.loads(completed.stdout)
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(f"Invalid pdf-inspector output: {exc}") from exc
+
+
 def inspect_pdf(file_path: str) -> dict:
-    """Inspect and extract Markdown from a local PDF using pymupdf4llm."""
+    """Inspect and extract Markdown from a local PDF using Firecrawl pdf-inspector."""
     path = Path(file_path)
     errors: list[str] = []
     raw_markdown = ""
     classification = "empty_or_failed_parse"
+    inspector_result: dict | None = None
 
     if not path.exists():
         return {
@@ -73,23 +124,28 @@ def inspect_pdf(file_path: str) -> dict:
         }
 
     try:
-        import pymupdf4llm  # type: ignore
-        raw_markdown = pymupdf4llm.to_markdown(str(path))
-        pages_preview = [raw_markdown[i: i + 500] for i in range(0, min(len(raw_markdown), 5000), 500)]
-        classification = _classify_pdf(pages_preview)
-    except ImportError:
-        errors.append("pymupdf4llm not installed — install with: pip install pymupdf4llm")
-        classification = "empty_or_failed_parse"
+        inspector_result = _run_pdf_inspector(str(path))
+        raw_markdown = (inspector_result.get("markdown") or "").strip()
+        classification = _normalize_pdf_type(inspector_result.get("pdfType"))
     except Exception as exc:
-        errors.append(f"Extraction error: {exc}")
-        classification = "empty_or_failed_parse"
+        errors.append(f"pdf-inspector extraction error: {exc}")
+        try:
+            import pymupdf4llm  # type: ignore
+
+            raw_markdown = pymupdf4llm.to_markdown(str(path))
+            pages_preview = [raw_markdown[i : i + 500] for i in range(0, min(len(raw_markdown), 5000), 500)]
+            classification = _classify_pdf(pages_preview)
+            errors.append("Fell back to pymupdf4llm because Firecrawl pdf-inspector was unavailable.")
+        except Exception as fallback_exc:
+            errors.append(f"Fallback extraction error: {fallback_exc}")
+            classification = "empty_or_failed_parse"
 
     if not raw_markdown.strip():
         classification = "empty_or_failed_parse" if not errors else classification
 
     ocr_needed = requires_ocr({"pdf_classification": classification})
     status = "ocr_required" if ocr_needed else ("failed" if not raw_markdown.strip() else "success")
-    metadata = build_pdf_metadata(file_path, raw_markdown, classification)
+    metadata = build_pdf_metadata(file_path, raw_markdown, classification, inspector_result)
 
     if raw_markdown:
         save_raw_markdown(raw_markdown, path.name)
@@ -108,5 +164,5 @@ def inspect_pdf(file_path: str) -> dict:
 
 
 def parse_pdf_to_markdown(file_path: str) -> dict:
-    """Convenience wrapper — alias for inspect_pdf."""
+    """Convenience wrapper - alias for inspect_pdf."""
     return inspect_pdf(file_path)

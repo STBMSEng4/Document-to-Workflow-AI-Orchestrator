@@ -48,8 +48,8 @@ RFIs / Tasks / Points / Reports
 
 - Python
 - Streamlit
-- PyMuPDF / PyMuPDF4LLM
-- Firecrawl
+- Firecrawl PDF Inspector
+- PyMuPDF / PyMuPDF4LLM fallback
 - OpenAI or approved LLM API
 - Markdown / CSV export
 
@@ -64,6 +64,23 @@ outputs/
 tests/
 scripts/
 ```
+
+## Container Run
+
+Run the app in Docker:
+
+```bash
+cp .env.example .env
+docker compose up -d --build
+```
+
+Then open:
+
+```text
+http://<tailscale-ip>:8501
+```
+
+Deployment notes live in [docs/deployment.md](/E:/Document-to-Workflow-AI-Orchestrator/docs/deployment.md).
 
 ## Branch Strategy
 
