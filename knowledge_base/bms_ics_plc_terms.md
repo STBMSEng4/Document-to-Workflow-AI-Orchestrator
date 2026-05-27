@@ -11,14 +11,14 @@
 
 | Term Type | Count | Purpose |
 |---|---:|---|
-| equipment_type | 28 | HVAC and mechanical equipment |
-| plc_hardware | 22 | PLC racks, CPUs, I/O modules |
+| equipment_type | 37 | HVAC, mechanical, and electrical/power equipment |
+| plc_hardware | 29 | PLC racks, CPUs, I/O modules, and power-control hardware |
 | industrial_sensor | 30 | Process and field sensors |
-| panel_component | 18 | Control panel hardware |
-| protocol | 16 | Communication protocols |
-| platform | 20 | BMS, SCADA, HMI, and software platforms |
+| panel_component | 25 | Control panel and electrical distribution hardware |
+| protocol | 18 | Communication and utility/OT protocols |
+| platform | 24 | BMS, SCADA, HMI, DCIM, and software platforms |
 | controller_model | 20 | Named controller models |
-| manufacturer | 60 | Equipment and device manufacturers |
+| manufacturer | 68 | Equipment, device, and power infrastructure manufacturers |
 | io_type | 6 | I/O point types |
 | signal_type | 10 | Signal and wiring types |
 | eng_unit | 9 | Engineering units |
@@ -56,10 +56,20 @@
 | actuator | 0.75 | all | actuator, damper actuator, valve actuator, spring return, modulating actuator | Mechanical mover |
 | humidifier | 0.75 | all | humidifier, steam humidifier, HUM, humidity control | Moisture addition |
 | heat exchanger | 0.75 | all | heat exchanger, HX, plate exchanger, shell and tube | Fluid heat transfer |
+| generator | 0.75 | all | genset, diesel generator, standby generator, emergency generator, generator set | Backup or prime power source |
+| ATS | 0.75 | all | automatic transfer switch, transfer switch, auto transfer switch | Utility-generator transfer equipment |
+| STS | 0.75 | all | static transfer switch, static switch, critical transfer switch | Fast transfer for critical loads |
+| MCC | 0.75 | all | motor control center, MCC lineup, MCC section | Motor starter lineup |
+| switchgear | 0.75 | all | medium voltage switchgear, low voltage switchgear, lineup | Power distribution and protection lineup |
+| switchboard | 0.75 | all | switch board, distribution switchboard, power switchboard | Low-voltage power distribution lineup |
+| PDU | 0.75 | all | power distribution unit, floor PDU, panelboard transformer unit | Data center power distribution |
+| RPP | 0.75 | all | remote power panel, remote panelboard | Downstream data center power distribution |
+| busway | 0.70 | all | bus duct, busway, busway tap box, overhead busway | Modular overhead power distribution |
 | motor | 0.70 | all | motor, electric motor, induction motor, NEMA motor | Rotating machine |
 | compressor | 0.70 | all | compressor, scroll compressor, screw compressor, reciprocating | Refrigerant compression |
 | economizer | 0.70 | all | economizer, economiser, free cooling, OA economizer | OA-based free cooling |
 | cooling coil | 0.65 | all | cooling coil, chilled water coil, DX coil, evaporator coil | Air cooling element |
+| CRAH | 0.65 | all | computer room air handler, CRAH unit, data hall air handler | Data center chilled-water cooling unit |
 
 ---
 
@@ -88,7 +98,14 @@
 | RTU | 0.70 | ics | remote terminal unit, field RTU, SCADA RTU | Remote data acquisition |
 | IED | 0.65 | all | intelligent electronic device, protection relay, IED | Smart field device |
 | safety relay | 0.65 | all | safety relay module, E-stop relay, SIL relay | Safety circuit device |
+| protective relay | 0.65 | all | feeder relay, SEL relay, protection relay, trip relay | Electrical protection and control |
 | terminal block | 0.60 | all | terminal strip, DIN rail terminal, screw terminal | Panel wiring connection |
+| generator controller | 0.60 | all | genset controller, engine controller, generator governor controller | Generator set control hardware |
+| synchronizer | 0.60 | all | sync controller, synchronizing relay, synchronizer module | Generator paralleling control |
+| excitation controller | 0.60 | all | AVR, automatic voltage regulator, excitation system | Generator voltage control |
+| load shed controller | 0.60 | all | load shedding controller, demand control module | Priority load management |
+| breaker control unit | 0.55 | all | BCU, breaker control relay, trip unit controller | Breaker monitoring and control |
+| paralleling controller | 0.55 | all | generator paralleling controller, bus controller | Multi-generator lineup control |
 
 ---
 
@@ -144,9 +161,19 @@
 | soft starter | 0.80 | all | reduced voltage starter, RVS, motor soft start | Motor starting |
 | UPS | 0.80 | all | uninterruptible power supply, battery backup, panel UPS, backup power | Power backup |
 | surge protector | 0.75 | all | SPD, surge protection device, transient protection, lightning protection | Surge protection |
+| current transformer | 0.75 | all | CT, metering CT, protection CT, split-core CT | Current sensing transformer |
+| potential transformer | 0.75 | all | PT, VT, voltage transformer, control power transformer | Voltage sensing transformer |
+| MCC bucket | 0.75 | all | starter bucket, feeder bucket, motor bucket | MCC withdrawable unit |
+| busbar | 0.75 | all | bus bar, copper bus, neutral bus, ground bus | Power distribution conductor |
 | enclosure | 0.75 | all | NEMA 1 enclosure, NEMA 4 enclosure, panel box, steel enclosure, Hoffman box | Panel housing |
 | DIN rail | 0.70 | all | mounting rail, 35mm DIN, DIN rail mount | Component mounting |
 | terminal strip | 0.70 | all | terminal block, screw terminal, field terminal, wiring terminal | Panel termination |
+| motor starter | 0.70 | all | combination starter, FVNR starter, reversing starter, starter unit | Motor branch control assembly |
+| trip unit | 0.70 | all | electronic trip unit, breaker trip unit, LSI trip, LSIG trip | Breaker protection electronics |
+| static switch | 0.70 | all | static transfer module, SCR transfer switch | Critical load transfer device |
+| bypass switch | 0.70 | all | maintenance bypass, wrap-around bypass, isolation bypass | Bypass path for critical power |
+| battery charger | 0.70 | all | DC charger, float charger, UPS battery charger | Battery maintenance power |
+| panelboard | 0.65 | all | branch panel, power panel, distribution panelboard | Final-stage power distribution |
 | pilot light | 0.65 | all | indicator light, status light, LED indicator, signal light | Status indication |
 | selector switch | 0.65 | all | HOA switch, hand-off-auto, rotary switch, mode switch | Manual override |
 | push button | 0.65 | all | E-stop, emergency stop, momentary push button, reset button | Manual control |
@@ -172,6 +199,8 @@
 | CC-Link | 0.75 | all | CC-Link IE, CC-Link field | Mitsubishi field bus |
 | Foundation Fieldbus | 0.75 | all | FF, FOUNDATION fieldbus, H1, HSE | Process industry protocol |
 | DNP3 | 0.75 | all | DNP 3.0, Distributed Network Protocol | Utility SCADA protocol |
+| SNMP | 0.70 | all | simple network management protocol, SNMPv2, SNMPv3 | Network and data center device monitoring |
+| IEC 61850 | 0.70 | all | IEC61850, GOOSE, MMS, utility substation protocol | Power system automation protocol |
 | KNX | 0.65 | all | KNX, EIB, KNX/IP | Building lighting/HVAC |
 | IP | 0.60 | all | Ethernet, TCP/IP, LAN, network, IP network | Network transport layer |
 
@@ -192,11 +221,15 @@
 | Ignition | 0.85 | all | Inductive Automation Ignition, Ignition SCADA, Ignition HMI | Modern SCADA platform |
 | Wonderware | 0.85 | all | Wonderware InTouch, Wonderware System Platform, AVEVA InTouch | SCADA HMI platform |
 | iFIX | 0.80 | all | GE iFIX, Proficy iFIX, HMI/SCADA iFIX | GE SCADA platform |
+| EPMS | 0.80 | all | electrical power monitoring system, power monitoring system | Data center and facility power monitoring |
+| DCIM | 0.80 | all | data center infrastructure management, DCIM platform | Data center operations and asset visibility |
 | Desigo | 0.80 | all | Desigo CC, Desigo Insight, PXC, Siemens Desigo | Siemens BMS platform |
 | Compass | 0.80 | alerton | Alerton Compass, Compass software | Alerton front-end |
 | WEBs | 0.80 | climatec | WEBs AX, WEBs-AX, Honeywell WEBs | Honeywell Climatec alternate |
 | HVAC | 0.80 | all | heating ventilating air conditioning, mechanical system, HVAC system | Mechanical domain |
 | OSIsoft PI | 0.75 | all | PI System, AVEVA PI, OSIsoft, PI historian | Data historian platform |
+| Power Monitoring Expert | 0.75 | all | PME, Schneider PME, EcoStruxure PME | Electrical power monitoring platform |
+| Power SCADA | 0.75 | all | PowerSCADA, Power SCADA Operation, PSO | Electrical SCADA platform |
 | GX Works | 0.75 | all | GX Works 2, GX Works 3, Mitsubishi GX | Mitsubishi PLC software |
 | Sysmac Studio | 0.75 | all | Sysmac, Omron Sysmac, NJ/NX series software | Omron PLC software |
 | Unity Pro | 0.75 | all | Unity Pro, EcoStruxure Control Expert, Schneider Unity | Schneider PLC software |
@@ -248,9 +281,14 @@
 | Mitsubishi Electric | 0.90 | all | Mitsubishi, MELSEC, GOT HMI | Japanese PLC/drive OEM |
 | Omron | 0.90 | all | Omron Automation, SYSMAC | Japanese PLC OEM |
 | Emerson | 0.90 | all | Emerson Electric, Fisher Controls, DeltaV, Rosemount | Process control OEM |
+| Vertiv | 0.90 | all | Liebert, Geist, Vertiv Power, Vertiv Cooling | Data center power and cooling OEM |
 | Trane | 0.90 | all | Trane Technologies, Trane HVAC | HVAC OEM |
 | Carrier | 0.90 | all | Carrier Global, Carrier HVAC | HVAC OEM |
 | Daikin | 0.85 | all | Daikin Industries, Daikin Applied | VRF/HVAC OEM |
+| APC | 0.85 | all | APC by Schneider Electric, APC UPS | Data center UPS and rack power OEM |
+| Cummins | 0.85 | all | Cummins Power Generation, Onan | Generator and power OEM |
+| Caterpillar | 0.85 | all | CAT, Caterpillar Electric Power | Generator and switchgear OEM |
+| Kohler | 0.85 | all | Kohler Power, Kohler SDMO | Generator OEM |
 | Belimo | 0.85 | all | Belimo Aircontrols | Actuator specialist |
 | Dwyer | 0.85 | controlworks | Dwyer Instruments | Sensors and instrumentation |
 | Setra | 0.85 | controlworks | Setra Systems Inc | Pressure sensors |
@@ -260,10 +298,12 @@
 | BAPI | 0.85 | controlworks | Building Automation Products Inc | BAS sensors |
 | Mamac | 0.85 | climatec | MAMAC Systems | Sensors and transducers |
 | Beckhoff | 0.85 | all | Beckhoff Automation, TwinCAT | PC-based PLC OEM |
+| ASCO | 0.85 | all | ASCO Power, automatic transfer switch, ASCO transfer switch | ATS and critical power OEM |
 | Phoenix Contact | 0.85 | all | Phoenix Contact GmbH | Terminal blocks and I/O |
 | Wago | 0.80 | all | WAGO Corporation | Modular I/O |
 | AutomationDirect | 0.80 | all | Automation Direct, CLICK PLC, Do-more | Low-cost PLC vendor |
 | GE | 0.80 | all | GE Automation, GE Fanuc, Proficy | PLC/HMI/SCADA OEM |
+| Generac | 0.80 | all | Generac Power Systems | Generator OEM |
 | Keyence | 0.80 | all | Keyence Corp | Sensors and vision |
 | Omega | 0.80 | all | Omega Engineering | Sensors and instrumentation |
 | Vaisala | 0.80 | all | Vaisala Inc | Humidity/temp sensors |
@@ -276,6 +316,7 @@
 | Opto 22 | 0.75 | all | Opto22, groov | PAC and I/O OEM |
 | Red Lion | 0.75 | all | Red Lion Controls | HMI and protocol gateways |
 | Moxa | 0.75 | all | Moxa Technologies | Industrial networking |
+| Schweitzer Engineering Laboratories | 0.75 | all | SEL, Schweitzer, protective relay | Power system protection OEM |
 | Advantech | 0.75 | all | Advantech Co | Industrial computers |
 | Contemporary Controls | 0.75 | controlworks | Contemporary Controls | BACnet routers/gateways |
 | Functional Devices | 0.75 | controlworks | Functional Devices Inc, RIB relays | Relay modules |
