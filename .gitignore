@@ -34,3 +34,8 @@ desktop.ini
 
 # Streamlit
 .streamlit/secrets.toml
+streamlit.log
+
+# Node / local parser runtime
+node_modules/
+package-lock.json

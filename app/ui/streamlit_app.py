@@ -483,5 +483,5 @@ Add a row to the MD table → scorer picks it up automatically. No code changes 
 
 **Deployment:** Docker container on Michael LXC (BAAL-PRXMX). Team access via Tailscale browser.
 
-**Version:** v0.4.0
+**Version:** v0.4.1
 """)
