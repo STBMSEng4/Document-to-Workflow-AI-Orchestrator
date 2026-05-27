@@ -10,6 +10,7 @@ import hashlib
 import json
 import shutil
 import subprocess
+import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -54,11 +55,53 @@ def save_raw_markdown(markdown: str, filename: str) -> str:
     return str(out_path)
 
 
+def _run_tesseract_ocr(file_path: str) -> str:
+    tesseract_binary = shutil.which("tesseract")
+    if not tesseract_binary:
+        raise RuntimeError("Tesseract is not installed. Install tesseract-ocr to OCR scanned PDFs.")
+
+    import fitz  # type: ignore
+
+    doc = fitz.open(file_path)
+    page_text: list[str] = []
+
+    try:
+        with tempfile.TemporaryDirectory(prefix="specflow_ocr_") as tmpdir:
+            tmpdir_path = Path(tmpdir)
+            for page_index in range(len(doc)):
+                page = doc.load_page(page_index)
+                pix = page.get_pixmap(matrix=fitz.Matrix(2, 2), alpha=False)
+                image_path = tmpdir_path / f"page_{page_index + 1}.png"
+                pix.save(str(image_path))
+
+                completed = subprocess.run(
+                    [tesseract_binary, str(image_path), "stdout", "--psm", "6"],
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                )
+
+                if completed.returncode != 0:
+                    stderr = completed.stderr.strip() or "Unknown Tesseract OCR error"
+                    raise RuntimeError(stderr)
+
+                text = completed.stdout.strip()
+                if text:
+                    page_text.append(f"## OCR Page {page_index + 1}\n\n{text}")
+    finally:
+        doc.close()
+
+    return "\n\n".join(page_text).strip()
+
+
 def build_pdf_metadata(
     file_path: str,
     raw_markdown: str,
     classification: str,
     inspector_result: dict | None = None,
+    *,
+    ocr_applied: bool = False,
+    ocr_engine: str | None = None,
 ) -> dict:
     path = Path(file_path)
     file_hash = hashlib.md5(path.read_bytes()).hexdigest() if path.exists() else ""
@@ -72,6 +115,8 @@ def build_pdf_metadata(
         "word_count": len(raw_markdown.split()),
         "pdf_inspector_confidence": None if inspector_result is None else inspector_result.get("confidence"),
         "pages_needing_ocr": [] if inspector_result is None else inspector_result.get("pagesNeedingOcr", []),
+        "ocr_applied": ocr_applied,
+        "ocr_engine": ocr_engine,
     }
 
 
@@ -111,6 +156,8 @@ def inspect_pdf(file_path: str) -> dict:
     raw_markdown = ""
     classification = "empty_or_failed_parse"
     inspector_result: dict | None = None
+    ocr_applied = False
+    ocr_engine: str | None = None
 
     if not path.exists():
         return {
@@ -153,12 +200,31 @@ def inspect_pdf(file_path: str) -> dict:
         classification = "empty_or_failed_parse" if not errors else classification
 
     if ocr_needed and not raw_markdown.strip():
-        errors.append(
-            "PDF appears to be scanned or image-heavy. OCR text is required before workflow extraction can continue."
-        )
+        try:
+            raw_markdown = _run_tesseract_ocr(str(path))
+            if raw_markdown.strip():
+                ocr_applied = True
+                ocr_engine = "tesseract"
+                errors.append("Applied OCR fallback via Tesseract because the PDF is scanned or image-heavy.")
+            else:
+                errors.append(
+                    "PDF appears to be scanned or image-heavy. OCR ran but did not recover usable text."
+                )
+        except Exception as ocr_exc:
+            errors.append(f"OCR fallback error: {ocr_exc}")
+            errors.append(
+                "PDF appears to be scanned or image-heavy. OCR text is required before workflow extraction can continue."
+            )
 
     status = "ocr_required" if ocr_needed and not raw_markdown.strip() else ("failed" if not raw_markdown.strip() else "success")
-    metadata = build_pdf_metadata(file_path, raw_markdown, classification, inspector_result)
+    metadata = build_pdf_metadata(
+        file_path,
+        raw_markdown,
+        classification,
+        inspector_result,
+        ocr_applied=ocr_applied,
+        ocr_engine=ocr_engine,
+    )
 
     if raw_markdown:
         save_raw_markdown(raw_markdown, path.name)
@@ -170,7 +236,8 @@ def inspect_pdf(file_path: str) -> dict:
         "pdf_classification": classification,
         "raw_markdown": raw_markdown,
         "metadata": metadata,
-        "ocr_required": ocr_needed,
+        "ocr_required": ocr_needed and not raw_markdown.strip(),
+        "ocr_applied": ocr_applied,
         "status": status,
         "errors": errors,
     }

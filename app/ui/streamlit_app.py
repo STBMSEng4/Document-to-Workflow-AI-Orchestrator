@@ -152,7 +152,9 @@ with tabs[0]:
             )
             st.session_state.workflow_items = workflow_items
 
-        if result.get("status") == "ocr_required":
+        if result.get("ocr_applied"):
+            st.info("Scanned/image-heavy PDF was OCR-processed automatically. Review extracted text carefully before trusting workflow outputs.")
+        elif result.get("status") == "ocr_required":
             st.warning("Document parsed as scanned/image-heavy. OCR is required before workflow extraction will be useful.")
         elif result.get("status") == "failed":
             st.error("Parse failed. Check the inspection tab and parser warnings for details.")
@@ -178,7 +180,9 @@ with tabs[1]:
             for e in r["errors"]:
                 st.warning(e)
 
-        if r.get("status") == "ocr_required":
+        if r.get("ocr_applied"):
+            st.success("OCR fallback was applied to recover text from this scanned or image-heavy PDF.")
+        elif r.get("status") == "ocr_required":
             st.info(
                 "This document looks scanned or image-heavy. SpecFlow did not find enough embedded text to build a useful workflow package yet."
             )

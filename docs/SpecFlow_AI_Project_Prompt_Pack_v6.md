@@ -41,6 +41,7 @@ The source document must support every output item.
 | ~~Workflow extractor~~ | Done | Stub replaced with real points / RFI / field / cx / CAD / submittal outputs |
 | ~~Container repo sync to GitHub~~ | Done | Live container synced to commit `0df9b3d` on `Cryptocrack4011` |
 | ~~Scanned PDF detection fix~~ | Done | Scanned/image-heavy PDFs now stay `ocr_required` instead of degrading to generic failed parse |
+| ~~OCR fallback for scanned PDFs~~ | Done | PyMuPDF page rendering + Tesseract fallback now attempts text recovery automatically |
 | ~~Parser regression test for scanned PDFs~~ | Done | Added unit coverage for scanned vs text PDF status handling |
 | ~~Tailscale access~~ | Done | Tailnet access working |
 | ~~Tailscale Funnel~~ | Done | Public HTTPS endpoint enabled |
@@ -72,6 +73,12 @@ The source document must support every output item.
 - ~~Added parser regression coverage~~
   - Scanned PDF -> `ocr_required`
   - Text PDF -> `success`
+
+- ~~Added OCR fallback for scanned/image-heavy PDFs~~
+  - If Firecrawl classifies a PDF as scanned/image-heavy and returns no Markdown,
+    SpecFlow now renders pages locally and runs Tesseract OCR automatically.
+  - If OCR recovers text, the parse proceeds as `success`.
+  - If OCR still cannot recover text, SpecFlow keeps the document in `ocr_required`.
 
 - ~~Published the app through Tailscale Funnel~~
   - Public URL:
@@ -105,7 +112,8 @@ Meaning:
 
 - The parser stack itself is working.
 - Those documents are scanned/image-only PDFs.
-- They need OCR before SpecFlow can produce useful source-confirmed workflow output.
+- OCR is now attempted automatically when Tesseract is installed.
+- If OCR still fails, the document remains `ocr_required`.
 
 ---
 
