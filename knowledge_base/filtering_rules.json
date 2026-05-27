@@ -1,0 +1,76 @@
+{
+  "detection_modes": {
+    "raw_detection_matrix": {
+      "description": "Shows all knowledge base terms including 0.00 scores. Use to prove what was not detected.",
+      "show_zero_confidence": true,
+      "include_kb_only_terms": true
+    },
+    "workflow_output": {
+      "description": "Only source-supported items above threshold. Use for final engineering workflow package.",
+      "show_zero_confidence": false,
+      "include_kb_only_terms": false,
+      "low_confidence_section": true
+    },
+    "template_generation": {
+      "description": "Template trigger decisions based on source-confirmed required terms.",
+      "require_source_confirmation": true,
+      "optional_boost_allowed": true
+    }
+  },
+  "source_confirmation_rules": {
+    "kb_only_confidence": 0.00,
+    "evidence_required": true,
+    "inferred_items_labeled": true,
+    "exact_match_types": ["exact", "alias"],
+    "inferred_match_types": ["inferred", "cross_reference"]
+  },
+  "suppression_rules": [
+    "Required source term is absent",
+    "Confidence is below applicable threshold",
+    "Evidence is only from the knowledge base",
+    "Source uses generic words without a technical qualifier",
+    "Detected item depends on an unsupported assumption"
+  ],
+  "suppression_examples": [
+    {"kb_term": "AHU", "source_contains": false, "action": "Suppress AHU template"},
+    {"kb_term": "PLC", "source_contains": "DDC controller", "action": "Suppress PLC integration review — DDC is not PLC"},
+    {"kb_term": "Modbus", "source_contains": "serial", "action": "Suppress Modbus review — serial is not Modbus"},
+    {"kb_term": "BACnet/IP", "source_contains": "network", "action": "Suppress BACnet/IP review — network is not BACnet/IP"},
+    {"kb_term": "points list", "source_contains": false, "action": "Suppress points-list generation when no I/O or signal terms found"}
+  ],
+  "workflow_thresholds": {
+    "equipment_template": 0.70,
+    "points_list": 0.70,
+    "rfi_candidate": 0.60,
+    "field_verification": 0.50,
+    "cad_task": 0.60,
+    "submittal_item": 0.60,
+    "commissioning_item": 0.65,
+    "ignore_below": 0.40
+  },
+  "output_visibility_rules": {
+    "workflow_output_mode": "Only confirmed + high + medium items above threshold",
+    "low_confidence_section": "Items between 0.40 and threshold",
+    "not_detected_section": "Raw matrix mode only",
+    "inferred_label": "Required on all inferred items"
+  },
+  "unsupported_term_handling": {
+    "confidence": 0.00,
+    "status": "Not Detected",
+    "source_confirmed": false,
+    "template_triggered": false,
+    "visible_in": ["raw_detection_matrix"]
+  },
+  "inferred_item_handling": {
+    "label_required": true,
+    "human_review_required_at": "medium_confidence",
+    "max_inferred_confidence_without_direct_evidence": 0.60
+  },
+  "pdf_quality_handling": {
+    "text_pdf": {"allow_extraction": true, "mark_incomplete": false, "suppress_workflow": false},
+    "mixed_pdf": {"allow_extraction": true, "mark_incomplete": true, "suppress_workflow": false},
+    "scanned_pdf": {"allow_extraction": false, "mark_incomplete": true, "suppress_workflow": true, "message": "OCR required"},
+    "image_heavy_pdf": {"allow_extraction": true, "mark_incomplete": true, "suppress_workflow": false, "message": "Low confidence — image-heavy"},
+    "empty_or_failed_parse": {"allow_extraction": false, "mark_incomplete": true, "suppress_workflow": true, "message": "Parse failure — provide better source"}
+  }
+}

@@ -1,0 +1,65 @@
+{
+  "score_components": {
+    "exact_term_match": 0.35,
+    "alias_synonym_match": 0.20,
+    "nearby_technical_context": 0.20,
+    "source_frequency_repetition": 0.10,
+    "document_section_relevance": 0.10,
+    "cross_reference_support": 0.05
+  },
+  "score_meanings": {
+    "1.00": "Explicit, repeated, and contextually confirmed",
+    "0.90": "Explicit and strongly supported",
+    "0.75": "Explicit but limited context",
+    "0.60": "Inferred from nearby context",
+    "0.40": "Weak inference",
+    "0.20": "Possible but poorly supported",
+    "0.00": "Not found or not supported"
+  },
+  "thresholds": {
+    "confirmed": 0.90,
+    "high_confidence": 0.75,
+    "medium_confidence": 0.60,
+    "low_confidence": 0.40,
+    "weak": 0.20,
+    "not_detected": 0.00
+  },
+  "status_labels": {
+    "0.90": "Confirmed",
+    "0.75": "High Confidence",
+    "0.60": "Medium Confidence",
+    "0.40": "Low Confidence",
+    "0.20": "Weak",
+    "0.00": "Not Detected"
+  },
+  "template_thresholds": {
+    "equipment_template": 0.70,
+    "points_list": 0.70,
+    "rfi_candidate": 0.60,
+    "field_verification": 0.50,
+    "cad_task": 0.60,
+    "submittal_item": 0.60,
+    "commissioning_item": 0.65,
+    "ignore_below": 0.40
+  },
+  "filtering_rules": {
+    "knowledge_base_only_contributes": 0.00,
+    "evidence_required_for_nonzero": true,
+    "inferred_must_be_labeled": true,
+    "cross_reference_boost_only": true
+  },
+  "examples": [
+    {
+      "input_text": "RTU-1 shall be provided with BACnet/IP communication to the BAS.",
+      "expected_scores": {
+        "RTU": 0.95,
+        "BACnet/IP": 0.90,
+        "BAS": 0.90,
+        "AHU": 0.00,
+        "Modbus": 0.00,
+        "PLC": 0.00
+      },
+      "rationale": "RTU, BACnet/IP, and BAS are explicitly stated. AHU, Modbus, and PLC have no source evidence."
+    }
+  ]
+}

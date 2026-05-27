@@ -1,0 +1,161 @@
+{
+  "templates": [
+    {
+      "template_name": "rtu_controls_review",
+      "description": "Full controls review for a rooftop unit",
+      "required_terms": ["RTU"],
+      "optional_boost_terms": ["BACnet/IP", "economizer", "supply fan", "heating stage", "cooling stage", "discharge air temperature"],
+      "minimum_confidence": 0.70,
+      "output_sections": [
+        "RTU Points List Candidates",
+        "RTU Field Verification Items",
+        "RTU RFIs",
+        "RTU CAD Tasks",
+        "RTU Submittal Items",
+        "RTU Commissioning Checklist"
+      ],
+      "generated_items": ["points_list", "field_verification", "rfi_candidates", "cad_tasks", "submittal_items", "commissioning_items"],
+      "suppress_if_terms_absent": true,
+      "human_review_required": false
+    },
+    {
+      "template_name": "ahu_controls_review",
+      "description": "Full controls review for an air handling unit",
+      "required_terms": ["AHU"],
+      "optional_boost_terms": ["VFD", "mixed air", "return air", "supply air", "economizer", "BACnet", "chilled water"],
+      "minimum_confidence": 0.70,
+      "output_sections": [
+        "AHU Points List Candidates",
+        "AHU Field Verification Items",
+        "AHU RFIs",
+        "AHU CAD Tasks",
+        "AHU Submittal Items",
+        "AHU Commissioning Checklist"
+      ],
+      "generated_items": ["points_list", "field_verification", "rfi_candidates", "cad_tasks", "submittal_items", "commissioning_items"],
+      "suppress_if_terms_absent": true,
+      "human_review_required": false
+    },
+    {
+      "template_name": "vav_controls_review",
+      "description": "Controls review for VAV terminal units",
+      "required_terms": ["VAV"],
+      "optional_boost_terms": ["reheat", "damper", "duct static", "space temperature", "BACnet MS/TP"],
+      "minimum_confidence": 0.70,
+      "output_sections": [
+        "VAV Points List Candidates",
+        "VAV Field Verification Items",
+        "VAV RFIs",
+        "VAV CAD Tasks",
+        "VAV Submittal Items",
+        "VAV Commissioning Checklist"
+      ],
+      "generated_items": ["points_list", "field_verification", "rfi_candidates", "cad_tasks", "submittal_items", "commissioning_items"],
+      "suppress_if_terms_absent": true,
+      "human_review_required": false
+    },
+    {
+      "template_name": "generic_bms_controls_review",
+      "description": "Generic BMS/BAS controls review when no specific equipment type is confirmed",
+      "required_terms": ["BMS", "BAS", "DDC controller"],
+      "required_terms_match": "any",
+      "optional_boost_terms": ["sequence of operation", "points list", "commissioning", "field verification"],
+      "minimum_confidence": 0.65,
+      "output_sections": [
+        "Controls Scope Summary",
+        "Points List Candidates",
+        "Field Verification Items",
+        "RFIs",
+        "Commissioning Items"
+      ],
+      "generated_items": ["points_list", "field_verification", "rfi_candidates", "commissioning_items"],
+      "suppress_if_terms_absent": true,
+      "human_review_required": true
+    },
+    {
+      "template_name": "bacnet_network_review",
+      "description": "BACnet network review for IP or MS/TP systems",
+      "required_terms": ["BACnet/IP", "BACnet MS/TP"],
+      "required_terms_match": "any",
+      "optional_boost_terms": ["BBMD", "network trunk", "router", "VLAN", "subnet"],
+      "minimum_confidence": 0.70,
+      "output_sections": [
+        "BACnet Network Review Items",
+        "Network Field Verification",
+        "Network RFIs",
+        "Network CAD Tasks"
+      ],
+      "generated_items": ["field_verification", "rfi_candidates", "cad_tasks"],
+      "suppress_if_terms_absent": true,
+      "human_review_required": false
+    },
+    {
+      "template_name": "modbus_network_review",
+      "description": "Modbus TCP or RTU network review",
+      "required_terms": ["Modbus TCP", "Modbus RTU"],
+      "required_terms_match": "any",
+      "optional_boost_terms": ["serial", "RS-485", "register map", "slave address"],
+      "minimum_confidence": 0.70,
+      "output_sections": [
+        "Modbus Network Review Items",
+        "Modbus Field Verification",
+        "Modbus RFIs"
+      ],
+      "generated_items": ["field_verification", "rfi_candidates"],
+      "suppress_if_terms_absent": true,
+      "human_review_required": true
+    },
+    {
+      "template_name": "plc_integration_review",
+      "description": "PLC/ICS integration review",
+      "required_terms": ["PLC"],
+      "optional_boost_terms": ["ladder logic", "I/O module", "HMI", "SCADA", "OPC UA"],
+      "minimum_confidence": 0.70,
+      "output_sections": [
+        "PLC Integration Review Items",
+        "PLC Field Verification",
+        "PLC RFIs",
+        "PLC CAD Tasks"
+      ],
+      "generated_items": ["field_verification", "rfi_candidates", "cad_tasks"],
+      "suppress_if_terms_absent": true,
+      "human_review_required": true
+    },
+    {
+      "template_name": "field_verification_review",
+      "description": "Standalone field verification checklist",
+      "required_terms": ["field verification", "point-to-point", "checkout"],
+      "required_terms_match": "any",
+      "optional_boost_terms": ["commissioning", "controller", "network", "sensor", "actuator"],
+      "minimum_confidence": 0.50,
+      "output_sections": ["Field Verification Checklist"],
+      "generated_items": ["field_verification"],
+      "suppress_if_terms_absent": true,
+      "human_review_required": false
+    },
+    {
+      "template_name": "submittal_review",
+      "description": "Submittal checklist for controls equipment",
+      "required_terms": ["submittal", "cut sheet", "shop drawing"],
+      "required_terms_match": "any",
+      "optional_boost_terms": ["controller", "sensor", "actuator", "VFD", "panel"],
+      "minimum_confidence": 0.60,
+      "output_sections": ["Submittal Checklist Items"],
+      "generated_items": ["submittal_items"],
+      "suppress_if_terms_absent": true,
+      "human_review_required": false
+    },
+    {
+      "template_name": "commissioning_review",
+      "description": "Commissioning checklist for controls systems",
+      "required_terms": ["commissioning", "functional test", "Cx"],
+      "required_terms_match": "any",
+      "optional_boost_terms": ["sequence of operation", "setpoint", "alarm", "trend log"],
+      "minimum_confidence": 0.65,
+      "output_sections": ["Commissioning Checklist Items"],
+      "generated_items": ["commissioning_items"],
+      "suppress_if_terms_absent": true,
+      "human_review_required": false
+    }
+  ]
+}
