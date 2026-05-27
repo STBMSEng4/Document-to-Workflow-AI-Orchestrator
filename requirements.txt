@@ -8,3 +8,5 @@ requests
 openai
 firecrawl-py
 markdown
+python-docx
+openpyxl
