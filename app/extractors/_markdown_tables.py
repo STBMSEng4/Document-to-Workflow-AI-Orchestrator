@@ -32,13 +32,20 @@ def _expand_inline_table_rows(markdown_text: str) -> list[str]:
     pattern = re.compile(r"\|.*?\|(?=\s+\||$)")
 
     for raw_line in markdown_text.splitlines():
-        stripped = raw_line.strip()
-        if stripped.startswith("|") and " | |" in raw_line:
-            segments = [segment.strip() for segment in pattern.findall(raw_line) if segment.strip()]
-            if len(segments) > 1:
-                expanded_lines.extend(segments)
-                continue
-        expanded_lines.append(raw_line)
+        normalized_line = re.sub(r"\s+(#{1,6}\s)", r"\n\1", raw_line)
+        for candidate in normalized_line.splitlines():
+            stripped = candidate.strip()
+            if stripped.startswith("#") and " |" in candidate:
+                heading, remainder = candidate.split(" |", 1)
+                expanded_lines.append(heading.rstrip())
+                candidate = "|" + remainder
+                stripped = candidate.strip()
+            if stripped.startswith("|") and " | |" in candidate:
+                segments = [segment.strip() for segment in pattern.findall(candidate) if segment.strip()]
+                if len(segments) > 1:
+                    expanded_lines.extend(segments)
+                    continue
+            expanded_lines.append(candidate)
 
     return expanded_lines
 

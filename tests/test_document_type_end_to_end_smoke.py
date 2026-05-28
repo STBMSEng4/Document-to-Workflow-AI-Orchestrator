@@ -30,6 +30,48 @@ SAMPLE_TEXT = """## Equipment Schedule
 
 
 class DocumentTypeEndToEndSmokeTests(unittest.TestCase):
+    def _write_simple_pdf(self, path: Path, text: str) -> None:
+        lines = [line for line in text.splitlines() if line.strip()]
+
+        def esc(value: str) -> str:
+            return value.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
+
+        text_lines = ["BT", "/F1 11 Tf", "72 800 Td", "14 TL"]
+        for index, line in enumerate(lines):
+            operator = "Tj" if index == 0 else "'"
+            text_lines.append(f"({esc(line)}) {operator}")
+        text_lines.append("ET")
+        stream = "\n".join(text_lines).encode("utf-8")
+
+        objects = [
+            b"<< /Type /Catalog /Pages 2 0 R >>",
+            b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+            b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>",
+            b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+            b"<< /Length %d >>\nstream\n%b\nendstream" % (len(stream), stream),
+        ]
+
+        content = bytearray(b"%PDF-1.4\n%\xe2\xe3\xcf\xd3\n")
+        offsets: list[int] = []
+        for index, obj in enumerate(objects, start=1):
+            offsets.append(len(content))
+            content.extend(f"{index} 0 obj\n".encode("ascii"))
+            content.extend(obj)
+            content.extend(b"\nendobj\n")
+
+        xref_offset = len(content)
+        content.extend(f"xref\n0 {len(objects) + 1}\n".encode("ascii"))
+        content.extend(b"0000000000 65535 f \n")
+        for offset in offsets:
+            content.extend(f"{offset:010d} 00000 n \n".encode("ascii"))
+        content.extend(
+            (
+                f"trailer\n<< /Size {len(objects) + 1} /Root 1 0 R >>\n"
+                f"startxref\n{xref_offset}\n%%EOF\n"
+            ).encode("ascii")
+        )
+        path.write_bytes(content)
+
     def _run_pipeline(self, raw_markdown: str) -> tuple[list, list, list]:
         normalized = normalize_text(raw_markdown)
         equipment = extract_equipment_records(normalized)
@@ -116,19 +158,9 @@ class DocumentTypeEndToEndSmokeTests(unittest.TestCase):
             self._assert_pipeline_outputs(equipment, points, merged_points)
 
     def test_end_to_end_pdf_text_based(self) -> None:
-        from reportlab.pdfgen import canvas
-
         with tempfile.TemporaryDirectory(prefix="specflow_pdf_smoke_") as tmpdir:
             path = Path(tmpdir) / "sample.pdf"
-            pdf = canvas.Canvas(str(path))
-            y = 800
-            for line in SAMPLE_TEXT.replace("degF", "F").splitlines():
-                if not line.strip():
-                    y -= 14
-                    continue
-                pdf.drawString(72, y, line)
-                y -= 14
-            pdf.save()
+            self._write_simple_pdf(path, SAMPLE_TEXT.replace("degF", "F"))
 
             result = inspect_pdf(str(path))
             self.assertEqual(result["status"], "success")
