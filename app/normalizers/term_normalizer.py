@@ -12,6 +12,8 @@ Table format expected:
 import re
 from pathlib import Path
 
+from app.schemas import VocabularyTerm
+
 KB_PATH = Path(__file__).parents[2] / "knowledge_base" / "bms_ics_plc_terms.md"
 
 # term_types that should be skipped during workflow scoring
@@ -31,16 +33,20 @@ def _parse_table_row(line: str) -> list[str] | None:
 
 
 def parse_kb_file(path: Path) -> list[dict]:
-    """Parse bms_ics_plc_terms.md into a list of term dicts."""
+    """Parse bms_ics_plc_terms.md into a list of validated term dicts."""
     terms: list[dict] = []
     current_type = "unknown"
 
     with open(path, encoding="utf-8") as f:
         for line in f:
-            # Detect section header: ## term_type or ## term_type (count)
-            header_match = re.match(r"^##\s+([\w_]+)", line)
+            # Detect machine-readable KB section header: ## equipment_type
+            # Ignore human-facing headers like "## Term Type Index".
+            header_match = re.match(r"^##\s+([a-z0-9_]+)\s*$", line.strip())
             if header_match:
                 current_type = header_match.group(1).lower()
+                continue
+
+            if current_type == "unknown":
                 continue
 
             row = _parse_table_row(line)
@@ -57,20 +63,28 @@ def parse_kb_file(path: Path) -> list[dict]:
             if not term or term.startswith("---"):
                 continue
 
-            aliases = [v.strip() for v in variants_raw.split(",") if v.strip()] if variants_raw else []
-
-            terms.append({
-                "term": term,
-                "normalized_term": term,
-                "category": current_type,
-                "weight": weight,
-                "scope": scope,
-                "aliases": aliases,
-                "notes": notes,
-                "is_skip": current_type in SUPPRESS_CATEGORIES,
-            })
+            term_model = VocabularyTerm.from_kb_row(
+                term=term,
+                weight=weight,
+                category=current_type,
+                scope=scope,
+                variants=variants_raw,
+                notes=notes,
+                is_skip=current_type in SUPPRESS_CATEGORIES,
+            )
+            terms.append(term_model.model_dump())
 
     return terms
+
+
+def load_kb_models() -> list[VocabularyTerm]:
+    """Load terms from KB file as validated schema models."""
+    return [VocabularyTerm.model_validate(t) for t in load_kb_terms()]
+
+
+def get_term_models() -> list[VocabularyTerm]:
+    """Return non-suppressing KB terms as validated schema models."""
+    return [VocabularyTerm.model_validate(t) for t in get_term_list()]
 
 
 def load_kb_terms() -> list[dict]:
@@ -103,15 +117,16 @@ def get_skip_terms() -> list[str]:
 
 def _fallback_terms() -> list[dict]:
     """Minimal fallback if KB file is missing or unparseable."""
-    return [
-        {"term": "BAS", "normalized_term": "BAS", "category": "platform", "weight": 1.0, "aliases": ["building automation system", "BMS"], "is_skip": False},
-        {"term": "DDC", "normalized_term": "DDC", "category": "platform", "weight": 0.9, "aliases": ["direct digital control"], "is_skip": False},
-        {"term": "ahu", "normalized_term": "AHU", "category": "equipment_type", "weight": 1.0, "aliases": ["air handling unit", "air handler", "AHU"], "is_skip": False},
-        {"term": "rtu", "normalized_term": "RTU", "category": "equipment_type", "weight": 1.0, "aliases": ["rooftop unit", "packaged unit", "RTU"], "is_skip": False},
-        {"term": "vav", "normalized_term": "VAV", "category": "equipment_type", "weight": 1.0, "aliases": ["variable air volume", "VAV box", "VAV"], "is_skip": False},
-        {"term": "PLC", "normalized_term": "PLC", "category": "plc_hardware", "weight": 1.0, "aliases": ["programmable logic controller"], "is_skip": False},
-        {"term": "BACnet", "normalized_term": "BACnet", "category": "protocol", "weight": 1.0, "aliases": ["BACnet/IP", "BACnet MS/TP", "BACnet MSTP"], "is_skip": False},
-        {"term": "Modbus", "normalized_term": "Modbus", "category": "protocol", "weight": 0.9, "aliases": ["Modbus TCP", "Modbus RTU"], "is_skip": False},
-        {"term": "point list", "normalized_term": "Point List", "category": "doc_signal", "weight": 1.0, "aliases": ["points list", "I/O list", "IO list"], "is_skip": False},
-        {"term": "commissioning", "normalized_term": "Commissioning", "category": "doc_signal", "weight": 0.9, "aliases": ["Cx", "functional testing", "checkout"], "is_skip": False},
+    fallback = [
+        VocabularyTerm(term="BAS", normalized_term="BAS", category="platform", weight=1.0, aliases=["building automation system", "BMS"]),
+        VocabularyTerm(term="DDC", normalized_term="DDC", category="platform", weight=0.9, aliases=["direct digital control"]),
+        VocabularyTerm(term="ahu", normalized_term="AHU", category="equipment_type", weight=1.0, aliases=["air handling unit", "air handler", "AHU"]),
+        VocabularyTerm(term="rtu", normalized_term="RTU", category="equipment_type", weight=1.0, aliases=["rooftop unit", "packaged unit", "RTU"]),
+        VocabularyTerm(term="vav", normalized_term="VAV", category="equipment_type", weight=1.0, aliases=["variable air volume", "VAV box", "VAV"]),
+        VocabularyTerm(term="PLC", normalized_term="PLC", category="plc_hardware", weight=1.0, aliases=["programmable logic controller"]),
+        VocabularyTerm(term="BACnet", normalized_term="BACnet", category="protocol", weight=1.0, aliases=["BACnet/IP", "BACnet MS/TP", "BACnet MSTP"]),
+        VocabularyTerm(term="Modbus", normalized_term="Modbus", category="protocol", weight=0.9, aliases=["Modbus TCP", "Modbus RTU"]),
+        VocabularyTerm(term="point list", normalized_term="Point List", category="doc_signal", weight=1.0, aliases=["points list", "I/O list", "IO list"]),
+        VocabularyTerm(term="commissioning", normalized_term="Commissioning", category="doc_signal", weight=0.9, aliases=["Cx", "functional testing", "checkout"]),
     ]
+    return [item.model_dump() for item in fallback]

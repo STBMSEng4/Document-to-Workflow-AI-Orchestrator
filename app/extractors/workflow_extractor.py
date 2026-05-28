@@ -26,7 +26,7 @@ class PointCandidate:
     engineering_unit: str
     description: str
     confidence: float
-    source: str           # "source_confirmed" | "template_default"
+    source_type: str      # "source_extracted" | "template_default" | "inferred"
 
 
 @dataclass
@@ -410,7 +410,7 @@ def _make_points(equip: str, confidence: float) -> list[PointCandidate]:
             engineering_unit=p["unit"],
             description=p["desc"],
             confidence=confidence,
-            source="source_confirmed",
+            source_type="template_default",
         )
         for p in pts
     ]
@@ -560,7 +560,7 @@ def extract_workflow_items(
                 "engineering_unit": p.engineering_unit,
                 "description": p.description,
                 "confidence": p.confidence,
-                "source": p.source,
+                "source_type": p.source_type,
             }
             for p in out.points
         ],

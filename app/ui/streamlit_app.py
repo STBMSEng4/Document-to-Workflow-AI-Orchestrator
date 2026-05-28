@@ -1,58 +1,136 @@
-"""SpecFlow AI — Streamlit MVP UI."""
+"""SpecFlow AI Streamlit UI."""
 
-import sys
+from __future__ import annotations
+
 import json
+import sys
 import tempfile
+from collections import Counter
 from pathlib import Path
 
 import streamlit as st
 
-# Allow imports from project root
+# Allow imports from project root.
 sys.path.insert(0, str(Path(__file__).parents[2]))
 
-from app.parsers.pdf_inspector_parser import inspect_pdf
+from app.exporters import flatten_records, rows_to_csv_bytes, rows_to_dataframe, tables_to_xlsx_bytes
+from app.extractors.equipment_extractor import extract_equipment_records
+from app.extractors.points_list_extractor import extract_point_records
+from app.extractors.template_fallback_merge import merge_point_records_with_template_defaults
+from app.extractors.workflow_extractor import extract_workflow_items
+from app.normalizers.markdown_normalizer import normalize_text
+from app.normalizers.term_normalizer import get_term_list
 from app.parsers.docx_parser import parse_docx_to_markdown
 from app.parsers.excel_parser import parse_excel_to_markdown
-from app.normalizers.markdown_normalizer import normalize_text, build_frontmatter
-from app.normalizers.term_normalizer import get_term_list
+from app.parsers.pdf_inspector_parser import inspect_pdf
 from app.scoring.confidence_scorer import score_all_terms
-from app.scoring.detection_matrix import build_markdown_matrix, build_json_matrix
-from app.scoring.filter_engine import apply_filters, evaluate_template_triggers, build_filter_markdown
-from app.extractors.workflow_extractor import extract_workflow_items
-from app.exporters.markdown_exporter import export_markdown_report
-from app.exporters.json_exporter import export_to_json
+from app.scoring.detection_matrix import build_json_matrix, build_markdown_matrix
+from app.scoring.filter_engine import apply_filters, build_filter_markdown, evaluate_template_triggers
+
 
 st.set_page_config(page_title="SpecFlow AI", layout="wide")
 
 st.title("SpecFlow AI")
 st.caption("Document-to-Workflow AI Orchestrator for BMS / HVAC Controls / ICS / PLC")
 
-# ── Tabs ──────────────────────────────────────────────────────────────────────
-tabs = st.tabs([
-    "Upload / Ingest",
-    "PDF / Doc Inspection",
-    "Raw Markdown",
-    "Detection Matrix",
-    "Filtering Summary",
-    "Workflow Output",
-    "Exports",
-    "About",
-])
 
-# ── Session state ─────────────────────────────────────────────────────────────
-for key in ("parse_result", "source_text", "scored_terms", "filter_results",
-            "template_decisions", "workflow_items", "matrix_mode"):
+def _record_dicts(records: list[object]) -> list[dict]:
+    return [
+        record.model_dump(mode="json") if hasattr(record, "model_dump") else record
+        for record in records
+    ]
+
+
+def _counter_markdown(counter: Counter[str]) -> str:
+    return ", ".join(f"{key}: {value}" for key, value in sorted(counter.items())) if counter else "None"
+
+
+def _workflow_report_markdown(workflow_items: dict) -> str:
+    lines = ["# SpecFlow AI - Workflow Report", ""]
+    lines.append(f"**Summary:** {workflow_items.get('summary', '')}")
+    lines.append("")
+
+    if workflow_items.get("points"):
+        lines.extend(
+            [
+                "## Points List Candidates",
+                "",
+                "| Equipment | Point Name | Abbr | I/O | Unit | Description |",
+                "|---|---|---|---|---|---|",
+            ]
+        )
+        for point in workflow_items["points"]:
+            lines.append(
+                f"| {point['equipment']} | {point['point_name']} | {point['abbreviation']} "
+                f"| {point['io_type']} | {point['engineering_unit']} | {point['description']} |"
+            )
+        lines.append("")
+
+    if workflow_items.get("rfis"):
+        lines.extend(["## RFI Items", ""])
+        for item in workflow_items["rfis"]:
+            lines.append(f"- **{item['rfi_number']}** [{item['priority']}] {item['question']}")
+        lines.append("")
+
+    if workflow_items.get("field_verifications"):
+        lines.extend(["## Field Verification Checklist", ""])
+        for item in workflow_items["field_verifications"]:
+            lines.append(f"- [ ] [{item['category']}] {item['task']}")
+        lines.append("")
+
+    if workflow_items.get("cx_items"):
+        lines.extend(["## Commissioning Checklist", ""])
+        for item in workflow_items["cx_items"]:
+            lines.append(f"- **{item['test_name']}** ({item['category']}): {item['description']}")
+        lines.append("")
+
+    if workflow_items.get("cad_tasks"):
+        lines.extend(["## CAD Tasks", ""])
+        for item in workflow_items["cad_tasks"]:
+            lines.append(f"- {item}")
+        lines.append("")
+
+    if workflow_items.get("submittal_items"):
+        lines.extend(["## Submittal Items", ""])
+        for item in workflow_items["submittal_items"]:
+            lines.append(f"- {item}")
+        lines.append("")
+
+    return "\n".join(lines)
+
+
+tabs = st.tabs(
+    [
+        "Upload / Ingest",
+        "PDF / Doc Inspection",
+        "Raw Markdown",
+        "Detection Matrix",
+        "Filtering Summary",
+        "Equipment",
+        "Points",
+        "Workflow Output",
+        "Exports",
+        "About",
+    ]
+)
+
+
+for key, default in {
+    "parse_result": None,
+    "source_text": "",
+    "scored_terms": [],
+    "filter_results": {},
+    "template_decisions": [],
+    "workflow_items": {},
+    "equipment_records": [],
+    "point_records": [],
+    "merged_point_records": [],
+    "matrix_mode": "workflow",
+}.items():
     if key not in st.session_state:
-        st.session_state[key] = None if key not in ("scored_terms",) else []
+        st.session_state[key] = default
 
-if "filter_results" not in st.session_state or st.session_state.filter_results is None:
-    st.session_state.filter_results = {}
-if "template_decisions" not in st.session_state or st.session_state.template_decisions is None:
-    st.session_state.template_decisions = []
-if "workflow_items" not in st.session_state or st.session_state.workflow_items is None:
-    st.session_state.workflow_items = {}
 
-# ── Tab 0: Upload / Ingest ────────────────────────────────────────────────────
 with tabs[0]:
     st.header("Upload / Ingest")
 
@@ -90,12 +168,9 @@ with tabs[0]:
     st.session_state.matrix_mode = "raw" if "Raw" in matrix_mode else "workflow"
 
     if st.button("Run SpecFlow AI", type="primary"):
-        with st.spinner("Ingesting and scoring..."):
-
-            # ── Parse ──────────────────────────────────────────────────────────
+        with st.spinner("Ingesting, extracting, and scoring..."):
             if input_mode == "Upload PDF" and uploaded_file:
-                suffix = ".pdf"
-                with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
+                with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
                     tmp.write(uploaded_file.read())
                     tmp_path = tmp.name
                 result = inspect_pdf(tmp_path)
@@ -114,7 +189,6 @@ with tabs[0]:
                 result = parse_excel_to_markdown(tmp_path)
 
             else:
-                # Pasted text fallback
                 result = {
                     "source_file": "pasted_text",
                     "pdf_classification": "text_input",
@@ -128,78 +202,86 @@ with tabs[0]:
                 }
 
             st.session_state.parse_result = result
-            raw_md = result.get("raw_markdown", "")
+            raw_markdown = result.get("raw_markdown", "")
 
-            # ── Normalise / Score / Filter ─────────────────────────────────────
-            normalized = normalize_text(raw_md)
+            normalized = normalize_text(raw_markdown)
             st.session_state.source_text = normalized
 
             kb_terms = get_term_list()
-            scored = score_all_terms(kb_terms, normalized)
-            st.session_state.scored_terms = scored
+            scored_terms = score_all_terms(kb_terms, normalized)
+            st.session_state.scored_terms = scored_terms
 
-            filter_results = apply_filters(scored)
+            filter_results = apply_filters(scored_terms)
             st.session_state.filter_results = filter_results
 
-            template_decisions = evaluate_template_triggers(scored)
+            template_decisions = evaluate_template_triggers(scored_terms)
             st.session_state.template_decisions = template_decisions
 
-            # ── Workflow extraction ────────────────────────────────────────────
+            equipment_records = extract_equipment_records(normalized)
+            point_records = extract_point_records(normalized, equipment_records=equipment_records)
+            merged_point_records = merge_point_records_with_template_defaults(point_records, equipment_records)
+
+            st.session_state.equipment_records = equipment_records
+            st.session_state.point_records = point_records
+            st.session_state.merged_point_records = merged_point_records
+
             workflow_items = extract_workflow_items(
                 normalized,
-                scored_terms=scored,
+                scored_terms=scored_terms,
                 template_decisions=template_decisions,
             )
             st.session_state.workflow_items = workflow_items
 
         if result.get("ocr_applied"):
-            st.info("Scanned/image-heavy PDF was OCR-processed automatically. Review extracted text carefully before trusting workflow outputs.")
+            st.info(
+                "Scanned or image-heavy PDF was OCR-processed automatically. Review extracted text carefully before trusting downstream outputs."
+            )
         elif result.get("status") == "ocr_required":
-            st.warning("Document parsed as scanned/image-heavy. OCR is required before workflow extraction will be useful.")
+            st.warning(
+                "Document parsed as scanned or image-heavy. OCR text is required before workflow extraction can continue."
+            )
         elif result.get("status") == "failed":
             st.error("Parse failed. Check the inspection tab and parser warnings for details.")
         else:
-            st.success("Done. Use the tabs above to explore results.")
+            st.success("Done. Explore structured Equipment and Points tabs alongside the workflow outputs.")
 
         if result.get("errors"):
-            for err in result["errors"]:
-                st.warning(err)
+            for error in result["errors"]:
+                st.warning(error)
 
-# ── Tab 1: PDF / Doc Inspection ───────────────────────────────────────────────
+
 with tabs[1]:
     st.header("Document Inspection Results")
-    r = st.session_state.parse_result
-    if r:
+    result = st.session_state.parse_result
+    if result:
         col1, col2, col3, col4 = st.columns(4)
-        col1.metric("Source Type", r.get("source_type", "—").upper())
-        col2.metric("Classification", r.get("pdf_classification", "—"))
-        col3.metric("Status", r.get("status", "—"))
-        col4.metric("OCR Required", str(r.get("ocr_required", False)))
+        col1.metric("Source Type", str(result.get("source_type", "-")).upper())
+        col2.metric("Classification", result.get("pdf_classification", "-"))
+        col3.metric("Status", result.get("status", "-"))
+        col4.metric("OCR Required", str(result.get("ocr_required", False)))
 
-        if r.get("errors"):
-            for e in r["errors"]:
-                st.warning(e)
+        if result.get("errors"):
+            for error in result["errors"]:
+                st.warning(error)
 
-        if r.get("ocr_applied"):
+        if result.get("ocr_applied"):
             st.success("OCR fallback was applied to recover text from this scanned or image-heavy PDF.")
-        elif r.get("status") == "ocr_required":
-            st.info(
-                "This document looks scanned or image-heavy. SpecFlow did not find enough embedded text to build a useful workflow package yet."
-            )
-            pages_needing_ocr = (r.get("metadata") or {}).get("pages_needing_ocr", [])
+        elif result.get("status") == "ocr_required":
+            st.info("This document looks scanned or image-heavy. SpecFlow still needs OCR text to build strong workflow outputs.")
+            pages_needing_ocr = (result.get("metadata") or {}).get("pages_needing_ocr", [])
             if pages_needing_ocr:
-                st.markdown(f"**Pages needing OCR:** {', '.join(str(p) for p in pages_needing_ocr)}")
-        elif r.get("status") == "failed":
+                st.markdown(f"**Pages needing OCR:** {', '.join(str(page) for page in pages_needing_ocr)}")
+        elif result.get("status") == "failed":
             st.error("SpecFlow could not extract usable Markdown from this file.")
 
-        meta = r.get("metadata", {})
-        if meta:
+        metadata = result.get("metadata", {})
+        if metadata:
             st.subheader("File Metadata")
-            st.json(meta)
+            st.json(metadata)
     else:
         st.info("Run SpecFlow AI on the Upload tab first.")
 
-# ── Tab 2: Raw Markdown ───────────────────────────────────────────────────────
+
 with tabs[2]:
     st.header("Raw / Normalized Markdown")
     if st.session_state.source_text:
@@ -208,245 +290,282 @@ with tabs[2]:
     else:
         st.info("Run SpecFlow AI on the Upload tab first.")
 
-# ── Tab 3: Detection Matrix ───────────────────────────────────────────────────
+
 with tabs[3]:
     st.header("Detection Matrix")
     if st.session_state.scored_terms:
         mode = st.session_state.get("matrix_mode", "workflow")
-        md_matrix = build_markdown_matrix(st.session_state.scored_terms, mode=mode)
-        st.markdown(md_matrix)
+        st.markdown(build_markdown_matrix(st.session_state.scored_terms, mode=mode))
 
-        confirmed = [t for t in st.session_state.scored_terms if t.source_confirmed]
-        not_detected = [t for t in st.session_state.scored_terms if not t.source_confirmed]
-        c1, c2, c3 = st.columns(3)
-        c1.metric("Total KB Terms", len(st.session_state.scored_terms))
-        c2.metric("Source Confirmed", len(confirmed))
-        c3.metric("Not Detected (0.00)", len(not_detected))
+        confirmed = [term for term in st.session_state.scored_terms if term.source_confirmed]
+        not_detected = [term for term in st.session_state.scored_terms if not term.source_confirmed]
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Total KB Terms", len(st.session_state.scored_terms))
+        col2.metric("Source Confirmed", len(confirmed))
+        col3.metric("Not Detected (0.00)", len(not_detected))
     else:
         st.info("Run SpecFlow AI on the Upload tab first.")
 
-# ── Tab 4: Filtering Summary ──────────────────────────────────────────────────
+
 with tabs[4]:
     st.header("Filtering Summary")
     if st.session_state.filter_results:
-        fr = st.session_state.filter_results
-        td = st.session_state.template_decisions
+        filter_results = st.session_state.filter_results
+        template_decisions = st.session_state.template_decisions
 
         col1, col2, col3, col4 = st.columns(4)
-        col1.metric("Allowed", len(fr.get("allowed", [])))
-        col2.metric("Low Confidence", len(fr.get("low_confidence", [])))
-        col3.metric("Suppressed", len(fr.get("suppressed", [])))
-        col4.metric("Not Detected", len(fr.get("not_detected", [])))
+        col1.metric("Allowed", len(filter_results.get("allowed", [])))
+        col2.metric("Low Confidence", len(filter_results.get("low_confidence", [])))
+        col3.metric("Suppressed", len(filter_results.get("suppressed", [])))
+        col4.metric("Not Detected", len(filter_results.get("not_detected", [])))
 
-        st.markdown(build_filter_markdown(fr, td))
+        st.markdown(build_filter_markdown(filter_results, template_decisions))
     else:
         st.info("Run SpecFlow AI on the Upload tab first.")
 
-# ── Tab 5: Workflow Output ────────────────────────────────────────────────────
+
 with tabs[5]:
+    st.header("Equipment")
+    equipment_records = st.session_state.equipment_records
+    if equipment_records:
+        equipment_rows = flatten_records(equipment_records)
+        equipment_df = rows_to_dataframe(equipment_rows)
+
+        type_counter = Counter(record.equipment_type for record in equipment_records)
+        review_counter = sum(1 for record in equipment_records if record.review_required)
+
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Equipment Rows", len(equipment_records))
+        col2.metric("Equipment Types", len(type_counter))
+        col3.metric("Review Required", review_counter)
+
+        st.caption(f"Type mix: {_counter_markdown(type_counter)}")
+        st.dataframe(equipment_df, use_container_width=True)
+    else:
+        st.info("No structured equipment records were extracted from the current document.")
+
+
+with tabs[6]:
+    st.header("Points")
+    point_records = st.session_state.point_records
+    merged_point_records = st.session_state.merged_point_records
+    if point_records or merged_point_records:
+        extracted_rows = flatten_records(point_records)
+        merged_rows = flatten_records(merged_point_records)
+        source_counter = Counter(record.source_type for record in merged_point_records)
+        template_backfill_count = max(0, len(merged_point_records) - len(point_records))
+        review_counter = sum(1 for record in merged_point_records if record.review_required)
+
+        col1, col2, col3, col4 = st.columns(4)
+        col1.metric("Extracted Points", len(point_records))
+        col2.metric("Final Points", len(merged_point_records))
+        col3.metric("Template Backfill", template_backfill_count)
+        col4.metric("Review Required", review_counter)
+
+        st.caption(f"Source mix: {_counter_markdown(source_counter)}")
+
+        if point_records:
+            with st.expander(f"Source Points ({len(point_records)})", expanded=False):
+                st.dataframe(rows_to_dataframe(extracted_rows), use_container_width=True)
+
+        with st.expander(f"Final Points ({len(merged_point_records)})", expanded=True):
+            st.dataframe(rows_to_dataframe(merged_rows), use_container_width=True)
+    else:
+        st.info("No structured points were extracted from the current document.")
+
+
+with tabs[7]:
     st.header("Workflow Output")
-    wi = st.session_state.workflow_items
+    workflow_items = st.session_state.workflow_items
     parse_result = st.session_state.parse_result
 
     if parse_result and parse_result.get("status") == "ocr_required":
         st.info("Workflow output is intentionally limited because this upload needs OCR before source-confirmed extraction can proceed.")
-    elif wi:
-        # Summary
-        st.info(wi.get("summary", ""))
+    elif workflow_items:
+        st.info(workflow_items.get("summary", ""))
 
-        triggered_tmpls = wi.get("triggered_templates", [])
-        if triggered_tmpls:
-            st.success(f"Triggered templates: {', '.join(triggered_tmpls)}")
+        triggered_templates = workflow_items.get("triggered_templates", [])
+        if triggered_templates:
+            st.success(f"Triggered templates: {', '.join(triggered_templates)}")
 
-        eq_list = wi.get("source_equipment", [])
-        proto_list = wi.get("source_protocols", [])
-        c1, c2, c3, c4, c5 = st.columns(5)
-        c1.metric("Equipment Detected", len(eq_list))
-        c2.metric("Points Generated", len(wi.get("points", [])))
-        c3.metric("RFI Items", len(wi.get("rfis", [])))
-        c4.metric("Field Verification", len(wi.get("field_verifications", [])))
-        c5.metric("Cx Tests", len(wi.get("cx_items", [])))
+        col1, col2, col3, col4, col5 = st.columns(5)
+        col1.metric("Equipment Detected", len(workflow_items.get("source_equipment", [])))
+        col2.metric("Points Generated", len(workflow_items.get("points", [])))
+        col3.metric("RFI Items", len(workflow_items.get("rfis", [])))
+        col4.metric("Field Verification", len(workflow_items.get("field_verifications", [])))
+        col5.metric("Cx Tests", len(workflow_items.get("cx_items", [])))
 
-        # ── Points list ───────────────────────────────────────────────────────
-        if wi.get("points"):
-            with st.expander(f"📋 Points List Candidates ({len(wi['points'])})", expanded=True):
-                st.dataframe(wi["points"], use_container_width=True)
+        if workflow_items.get("points"):
+            with st.expander(f"Points List Candidates ({len(workflow_items['points'])})", expanded=True):
+                st.dataframe(workflow_items["points"], use_container_width=True)
 
-        # ── RFIs ─────────────────────────────────────────────────────────────
-        if wi.get("rfis"):
-            with st.expander(f"❓ RFI Items ({len(wi['rfis'])})"):
-                high = [r for r in wi["rfis"] if r["priority"] == "High"]
-                med  = [r for r in wi["rfis"] if r["priority"] == "Medium"]
-                low  = [r for r in wi["rfis"] if r["priority"] == "Low"]
-                for bucket, label in ((high, "🔴 High Priority"), (med, "🟡 Medium Priority"), (low, "⚪ Low Priority")):
-                    if bucket:
-                        st.markdown(f"**{label}**")
-                        for r in bucket:
-                            st.markdown(f"- **{r['rfi_number']}** — {r['question']}")
+        if workflow_items.get("rfis"):
+            with st.expander(f"RFI Items ({len(workflow_items['rfis'])})"):
+                for priority in ("High", "Medium", "Low"):
+                    items = [item for item in workflow_items["rfis"] if item["priority"] == priority]
+                    if items:
+                        st.markdown(f"**{priority} Priority**")
+                        for item in items:
+                            st.markdown(f"- **{item['rfi_number']}** - {item['question']}")
 
-        # ── Field Verification ────────────────────────────────────────────────
-        if wi.get("field_verifications"):
-            with st.expander(f"🔧 Field Verification Checklist ({len(wi['field_verifications'])})"):
-                categories = sorted({fv["category"] for fv in wi["field_verifications"]})
-                for cat in categories:
-                    items = [fv for fv in wi["field_verifications"] if fv["category"] == cat]
-                    st.markdown(f"**{cat}**")
-                    for fv in items:
-                        st.markdown(f"- [ ] {fv['task']}")
+        if workflow_items.get("field_verifications"):
+            with st.expander(f"Field Verification Checklist ({len(workflow_items['field_verifications'])})"):
+                categories = sorted({item["category"] for item in workflow_items["field_verifications"]})
+                for category in categories:
+                    st.markdown(f"**{category}**")
+                    for item in workflow_items["field_verifications"]:
+                        if item["category"] == category:
+                            st.markdown(f"- [ ] {item['task']}")
 
-        # ── Commissioning ─────────────────────────────────────────────────────
-        if wi.get("cx_items"):
-            with st.expander(f"✅ Commissioning Checklist ({len(wi['cx_items'])})"):
-                st.dataframe(wi["cx_items"], use_container_width=True)
+        if workflow_items.get("cx_items"):
+            with st.expander(f"Commissioning Checklist ({len(workflow_items['cx_items'])})"):
+                st.dataframe(workflow_items["cx_items"], use_container_width=True)
 
-        # ── CAD Tasks ─────────────────────────────────────────────────────────
-        if wi.get("cad_tasks"):
-            with st.expander(f"📐 CAD Tasks ({len(wi['cad_tasks'])})"):
-                for task in wi["cad_tasks"]:
+        if workflow_items.get("cad_tasks"):
+            with st.expander(f"CAD Tasks ({len(workflow_items['cad_tasks'])})"):
+                for task in workflow_items["cad_tasks"]:
                     st.markdown(f"- {task}")
 
-        # ── Submittal Items ───────────────────────────────────────────────────
-        if wi.get("submittal_items"):
-            with st.expander(f"📦 Submittal Items ({len(wi['submittal_items'])})"):
-                for item in wi["submittal_items"]:
+        if workflow_items.get("submittal_items"):
+            with st.expander(f"Submittal Items ({len(workflow_items['submittal_items'])})"):
+                for item in workflow_items["submittal_items"]:
                     st.markdown(f"- {item}")
 
-        # ── Allowed workflow items (detection table) ──────────────────────────
         st.divider()
         st.subheader("Source-Confirmed Allowed Items")
         allowed = st.session_state.filter_results.get("allowed", [])
         if allowed:
             rows = [
-                {"Term": t.term, "Category": t.category, "Confidence": t.confidence, "Status": t.status}
-                for t in allowed
+                {
+                    "Term": term.term,
+                    "Category": term.category,
+                    "Confidence": term.confidence,
+                    "Status": term.status,
+                }
+                for term in allowed
             ]
             st.dataframe(rows, use_container_width=True)
         else:
             st.info("No items passed the workflow threshold.")
-
-    elif st.session_state.template_decisions:
-        # Old path: template decisions exist but workflow_items not populated yet
-        triggered = [d for d in st.session_state.template_decisions if d["triggered"]]
-        if triggered:
-            for tmpl in triggered:
-                st.subheader(f"✅ {tmpl['template_name']} (confidence {tmpl['confidence']:.2f})")
-                if tmpl.get("human_review_required"):
-                    st.warning("Human review recommended for this template.")
-                for section in tmpl.get("output_sections", []):
-                    st.markdown(f"- {section}")
-        else:
-            st.info("No templates triggered. Source document may not contain confirmed equipment or controls scope above threshold.")
     else:
         st.info("Run SpecFlow AI on the Upload tab first.")
 
-# ── Tab 6: Exports ────────────────────────────────────────────────────────────
-with tabs[6]:
+
+with tabs[8]:
     st.header("Exports")
     if st.session_state.scored_terms:
-        col1, col2 = st.columns(2)
+        equipment_records = st.session_state.equipment_records
+        point_records = st.session_state.point_records
+        merged_point_records = st.session_state.merged_point_records
+
+        equipment_rows = flatten_records(equipment_records)
+        point_rows = flatten_records(merged_point_records)
+        source_point_rows = flatten_records(point_records)
+
+        col1, col2, col3 = st.columns(3)
 
         with col1:
+            st.subheader("Structured JSON")
+            st.download_button(
+                label="Download Equipment (JSON)",
+                data=json.dumps(_record_dicts(equipment_records), indent=2),
+                file_name="specflow_equipment.json",
+                mime="application/json",
+            )
+            st.download_button(
+                label="Download Points (JSON)",
+                data=json.dumps(_record_dicts(merged_point_records), indent=2),
+                file_name="specflow_points.json",
+                mime="application/json",
+            )
+
+        with col2:
+            st.subheader("Structured CSV")
+            st.download_button(
+                label="Download Equipment (CSV)",
+                data=rows_to_csv_bytes(equipment_rows),
+                file_name="specflow_equipment.csv",
+                mime="text/csv",
+            )
+            st.download_button(
+                label="Download Points (CSV)",
+                data=rows_to_csv_bytes(point_rows),
+                file_name="specflow_points.csv",
+                mime="text/csv",
+            )
+
+        with col3:
+            st.subheader("Workbook")
+            workbook_bytes = tables_to_xlsx_bytes(
+                {
+                    "Equipment": equipment_rows,
+                    "Points": point_rows,
+                    "SourcePoints": source_point_rows,
+                }
+            )
+            st.download_button(
+                label="Download Equipment + Points (XLSX)",
+                data=workbook_bytes,
+                file_name="specflow_equipment_points.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            )
+
+        st.divider()
+
+        col4, col5 = st.columns(2)
+        with col4:
             st.subheader("Detection Matrix")
-            json_data = build_json_matrix(st.session_state.scored_terms)
-            json_str = json.dumps(json_data, indent=2)
+            matrix_json = json.dumps(build_json_matrix(st.session_state.scored_terms), indent=2)
             st.download_button(
                 label="Download Detection Matrix (JSON)",
-                data=json_str,
+                data=matrix_json,
                 file_name="specflow_detection_matrix.json",
                 mime="application/json",
             )
-            md_out = build_markdown_matrix(st.session_state.scored_terms, mode="workflow")
             st.download_button(
                 label="Download Detection Matrix (Markdown)",
-                data=md_out,
+                data=build_markdown_matrix(st.session_state.scored_terms, mode="workflow"),
                 file_name="specflow_detection_matrix.md",
                 mime="text/markdown",
             )
-            filter_md = build_filter_markdown(
-                st.session_state.filter_results,
-                st.session_state.template_decisions,
-            )
             st.download_button(
                 label="Download Filtering Summary (Markdown)",
-                data=filter_md,
+                data=build_filter_markdown(
+                    st.session_state.filter_results,
+                    st.session_state.template_decisions,
+                ),
                 file_name="specflow_filtering_summary.md",
                 mime="text/markdown",
             )
 
-        with col2:
+        with col5:
             st.subheader("Workflow Items")
-            wi = st.session_state.workflow_items
-            if wi:
-                wi_json = json.dumps(wi, indent=2)
+            workflow_items = st.session_state.workflow_items
+            if workflow_items:
                 st.download_button(
                     label="Download Workflow Items (JSON)",
-                    data=wi_json,
+                    data=json.dumps(workflow_items, indent=2),
                     file_name="specflow_workflow_items.json",
                     mime="application/json",
                 )
-
-                # Build a combined Markdown report
-                report_lines = [f"# SpecFlow AI — Workflow Report\n"]
-                report_lines.append(f"**Summary:** {wi.get('summary', '')}\n")
-
-                if wi.get("points"):
-                    report_lines.append("## Points List Candidates\n")
-                    report_lines.append("| Equipment | Point Name | Abbr | I/O | Unit | Description |")
-                    report_lines.append("|---|---|---|---|---|---|")
-                    for p in wi["points"]:
-                        report_lines.append(
-                            f"| {p['equipment']} | {p['point_name']} | {p['abbreviation']} "
-                            f"| {p['io_type']} | {p['engineering_unit']} | {p['description']} |"
-                        )
-                    report_lines.append("")
-
-                if wi.get("rfis"):
-                    report_lines.append("## RFI Items\n")
-                    for r in wi["rfis"]:
-                        report_lines.append(f"- **{r['rfi_number']}** [{r['priority']}] {r['question']}")
-                    report_lines.append("")
-
-                if wi.get("field_verifications"):
-                    report_lines.append("## Field Verification Checklist\n")
-                    for fv in wi["field_verifications"]:
-                        report_lines.append(f"- [ ] [{fv['category']}] {fv['task']}")
-                    report_lines.append("")
-
-                if wi.get("cx_items"):
-                    report_lines.append("## Commissioning Checklist\n")
-                    for c in wi["cx_items"]:
-                        report_lines.append(f"- **{c['test_name']}** ({c['category']}): {c['description']}")
-                    report_lines.append("")
-
-                if wi.get("cad_tasks"):
-                    report_lines.append("## CAD Tasks\n")
-                    for t in wi["cad_tasks"]:
-                        report_lines.append(f"- {t}")
-                    report_lines.append("")
-
-                if wi.get("submittal_items"):
-                    report_lines.append("## Submittal Items\n")
-                    for s in wi["submittal_items"]:
-                        report_lines.append(f"- {s}")
-
-                report_md = "\n".join(report_lines)
                 st.download_button(
                     label="Download Workflow Report (Markdown)",
-                    data=report_md,
+                    data=_workflow_report_markdown(workflow_items),
                     file_name="specflow_workflow_report.md",
                     mime="text/markdown",
                 )
     else:
         st.info("Run SpecFlow AI on the Upload tab first.")
 
-# ── Tab 7: About ──────────────────────────────────────────────────────────────
-with tabs[7]:
+
+with tabs[9]:
     st.header("About SpecFlow AI")
-    st.markdown("""
+    st.markdown(
+        """
 **SpecFlow AI** converts engineering documents into clean AI-agent-ready Markdown,
 then uses a BMS/ICS/PLC knowledge base and source-confirmed confidence scoring to generate
-points-list candidates, RFIs, field verification checklists, CAD tasks, submittal items,
-and commissioning checklists — outputting only what the source document actually confirms.
+structured equipment records, points lists, RFIs, field verification checklists, CAD tasks,
+submittal items, and commissioning checklists.
 
 **Core rule:**
 > Known vocabulary is not the same as detected vocabulary.
@@ -454,7 +573,7 @@ and commissioning checklists — outputting only what the source document actual
 
 ---
 
-**Confidence thresholds:**
+**Confidence thresholds**
 
 | Output Type | Minimum Confidence |
 |---|---:|
@@ -468,24 +587,29 @@ and commissioning checklists — outputting only what the source document actual
 
 ---
 
-**Supported document types:**
+**Supported document types**
 
 | Format | Parser | Notes |
 |---|---|---|
 | PDF (text-based) | Firecrawl pdf-inspector (Node.js) | Rust-powered, fast |
-| PDF (scanned) | OCR required — flagged in output | |
+| PDF (scanned) | OCR fallback | OCR text is reviewed separately |
 | DOCX | python-docx | Headings, tables, lists |
 | Excel (.xlsx) | openpyxl | Sheet-per-table Markdown |
 | Pasted text | Direct input | Any plain text or Markdown |
 
 ---
 
-**Stack:** Python · Streamlit · Firecrawl pdf-inspector · python-docx · openpyxl · Source-confirmed filtering
+**Structured outputs**
 
-**Knowledge base:** `knowledge_base/bms_ics_plc_terms.md` — table-driven, 270+ terms, 14 categories.
-Add a row to the MD table → scorer picks it up automatically. No code changes needed.
+- Equipment records with nested HVAC/BMS attributes
+- Extracted source points mapped to equipment tags
+- Final points list with template fallback rows clearly labeled
+- Confidence bands and review-required flags per row
 
-**Deployment:** Docker container on Michael LXC (BAAL-PRXMX). Team access via Tailscale browser.
+**Stack:** Python · Streamlit · Firecrawl pdf-inspector · python-docx · openpyxl · Pydantic
 
-**Version:** v0.4.1
-""")
+**Knowledge base:** `knowledge_base/bms_ics_plc_terms.md`
+
+**Version:** v0.5.0
+"""
+    )

@@ -11,7 +11,7 @@
 
 | Term Type | Count | Purpose |
 |---|---:|---|
-| equipment_type | 37 | HVAC, mechanical, and electrical/power equipment |
+| equipment_type | 66 | HVAC, mechanical, and electrical/power equipment |
 | plc_hardware | 29 | PLC racks, CPUs, I/O modules, and power-control hardware |
 | industrial_sensor | 30 | Process and field sensors |
 | panel_component | 25 | Control panel and electrical distribution hardware |
@@ -37,39 +37,67 @@
 | rtu | 1.00 | all | rooftop unit, rooftop units, roof top unit, packaged unit, RTU | Packaged rooftop HVAC |
 | vav | 1.00 | all | variable air volume, vav box, vav terminal, VAV | Variable volume terminal |
 | boiler | 0.90 | all | boiler, BLR, hot water boiler, steam boiler, HWB | Hydronic heating |
+| cav | 0.90 | all | constant air volume, CAV box, constant volume terminal, CAV | Constant volume terminal unit |
 | chiller | 0.90 | all | chiller, CHL, centrifugal chiller, scroll chiller, water-cooled chiller | Central cooling plant |
 | cooling tower | 0.90 | all | cooling tower, CT, condenser water tower | Condenser heat rejection |
 | doas | 0.90 | all | dedicated outdoor air, DOAS, dedicated OA unit | 100% OA ventilation unit |
-| exhaust fan | 0.90 | all | exhaust fan, EF, supply fan, SF, return fan, RF | Air movement fan |
+| exhaust fan | 0.90 | all | exhaust fan, EF, exhaust blower, toilet exhaust fan | Air movement fan |
 | fpb | 0.90 | all | fan powered box, fan-powered terminal, FPB, FTU, PIU | Fan-powered VAV terminal |
 | heat pump | 0.90 | all | heat pump, packaged heat pump, HP, ASHP, GSHP, WSHP | Reversible refrigerant system |
 | mau | 0.90 | all | makeup air unit, make-up air, make up air, MAU, MUA | Outdoor air conditioning |
+| mini split | 0.90 | all | mini split, mini-split, ductless split, ductless indoor unit | Ductless split-system HVAC |
+| supply fan | 0.90 | all | supply fan, SF, blower section, supply blower | Supply air fan equipment |
 | vfd | 0.90 | all | variable frequency drive, VFD, variable speed drive, VSD, drive, inverter | Motor speed control |
 | vrf | 0.90 | all | variable refrigerant flow, VRF, variable refrigerant volume, VRV | Multi-split refrigerant system |
 | crac | 0.80 | all | computer room air conditioner, CRAC, CRAH, precision cooling | Data center cooling |
 | erv | 0.80 | all | energy recovery ventilator, ERV, heat recovery ventilator, HRV | Ventilation with heat recovery |
+| eru | 0.80 | all | energy recovery unit, ERU, energy wheel unit | Energy recovery packaged unit |
+| hrv | 0.80 | all | heat recovery ventilator, HRV, sensible recovery ventilator | Heat recovery ventilation unit |
 | pump | 0.80 | all | pump, PMP, circulating pump, condenser pump, chilled water pump, CWP, HWP | Hydronic fluid mover |
+| relief fan | 0.80 | all | relief fan, relief blower, building relief fan | Relief/exhaust air fan |
+| return fan | 0.80 | all | return fan, RF, return blower | Return air fan equipment |
 | split system | 0.80 | all | split system, mini split, mini-split, ductless, PTAC, PTHP | Ductless AC system |
 | unit heater | 0.80 | all | unit heater, UH, cabinet unit heater, CUH | Fin-tube space heater |
+| unit ventilator | 0.80 | all | unit ventilator, UV, classroom unit ventilator | Classroom/perimeter terminal HVAC |
 | damper | 0.80 | all | damper, OA damper, RA damper, mixing damper, isolation damper, fire damper | Airflow control device |
 | valve | 0.80 | all | valve, control valve, CHW valve, HW valve, CW valve, 2-way valve, 3-way valve | Fluid flow control device |
 | actuator | 0.75 | all | actuator, damper actuator, valve actuator, spring return, modulating actuator | Mechanical mover |
+| air compressor | 0.75 | all | air compressor, instrument air compressor, compressor skid | Compressed air package |
+| cabinet unit heater | 0.75 | all | cabinet unit heater, CUH, vertical unit heater | Cabinet-style space heater |
+| chilled water pump | 0.75 | all | chilled water pump, CHW pump, CHWP | Chilled water hydronic pump |
+| condenser water pump | 0.75 | all | condenser water pump, CW pump, CWP | Condenser water hydronic pump |
+| condensing unit | 0.75 | all | condensing unit, CU, DX condensing unit, outdoor condensing unit | Outdoor DX refrigeration section |
+| dehumidifier | 0.75 | all | dehumidifier, desiccant dehumidifier, DHU | Moisture removal equipment |
+| dust collector | 0.75 | all | dust collector, baghouse, cartridge collector | Industrial air cleaning package |
 | humidifier | 0.75 | all | humidifier, steam humidifier, HUM, humidity control | Moisture addition |
 | heat exchanger | 0.75 | all | heat exchanger, HX, plate exchanger, shell and tube | Fluid heat transfer |
+| hot water pump | 0.75 | all | hot water pump, HHW pump, heating water pump, HWP | Heating water hydronic pump |
+| indoor unit | 0.75 | all | indoor unit, evaporator unit, fan coil head, wall cassette | Indoor refrigerant-side terminal unit |
 | generator | 0.75 | all | genset, diesel generator, standby generator, emergency generator, generator set | Backup or prime power source |
 | ATS | 0.75 | all | automatic transfer switch, transfer switch, auto transfer switch | Utility-generator transfer equipment |
 | STS | 0.75 | all | static transfer switch, static switch, critical transfer switch | Fast transfer for critical loads |
 | MCC | 0.75 | all | motor control center, MCC lineup, MCC section | Motor starter lineup |
+| plate heat exchanger | 0.75 | all | plate heat exchanger, PHE, plate and frame exchanger | Compact hydronic heat transfer package |
+| pressurization fan | 0.75 | all | pressurization fan, stair pressurization fan, corridor pressurization fan | Smoke control / pressure management fan |
+| reheat coil | 0.75 | all | reheat coil, terminal reheat coil, electric reheat, hot water reheat | Terminal reheating element |
+| smoke control fan | 0.75 | all | smoke control fan, smoke exhaust fan, smoke purge fan | Life-safety smoke management fan |
 | switchgear | 0.75 | all | medium voltage switchgear, low voltage switchgear, lineup | Power distribution and protection lineup |
 | switchboard | 0.75 | all | switch board, distribution switchboard, power switchboard | Low-voltage power distribution lineup |
 | PDU | 0.75 | all | power distribution unit, floor PDU, panelboard transformer unit | Data center power distribution |
 | RPP | 0.75 | all | remote power panel, remote panelboard | Downstream data center power distribution |
+| terminal unit | 0.75 | all | terminal unit, zone terminal, air terminal unit, ATU | Generic terminal HVAC device |
+| vrv | 0.75 | all | VRV, variable refrigerant volume, Daikin VRV | VRF-family refrigerant system |
+| wshp | 0.75 | all | water source heat pump, WSHP, console WSHP, horizontal WSHP | Water-source packaged heat pump |
 | busway | 0.70 | all | bus duct, busway, busway tap box, overhead busway | Modular overhead power distribution |
+| electric duct heater | 0.70 | all | electric duct heater, duct heater, electric heater bank | Electric in-duct heating section |
 | motor | 0.70 | all | motor, electric motor, induction motor, NEMA motor | Rotating machine |
 | compressor | 0.70 | all | compressor, scroll compressor, screw compressor, reciprocating | Refrigerant compression |
 | economizer | 0.70 | all | economizer, economiser, free cooling, OA economizer | OA-based free cooling |
 | cooling coil | 0.65 | all | cooling coil, chilled water coil, DX coil, evaporator coil | Air cooling element |
 | CRAH | 0.65 | all | computer room air handler, CRAH unit, data hall air handler | Data center chilled-water cooling unit |
+| electric unit heater | 0.65 | all | electric unit heater, EUH, duct-mounted unit heater | Electric space heater |
+| hot water coil | 0.65 | all | hot water coil, HHW coil, heating water coil | Hydronic heating coil |
+| steam coil | 0.65 | all | steam coil, steam heating coil, preheat coil | Steam heating coil |
 
 ---
 
