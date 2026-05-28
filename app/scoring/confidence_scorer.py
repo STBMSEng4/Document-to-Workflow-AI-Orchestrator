@@ -65,7 +65,12 @@ def _status_label(confidence: float) -> str:
 
 
 def _count_occurrences(term: str, text: str) -> int:
-    return len(re.findall(re.escape(term), text, re.IGNORECASE))
+    return len(_term_pattern(term).findall(text))
+
+
+def _term_pattern(term: str) -> re.Pattern[str]:
+    escaped = re.escape(term)
+    return re.compile(rf"(?<![A-Za-z0-9]){escaped}(?![A-Za-z0-9])", re.IGNORECASE)
 
 
 def _in_technical_section(text: str) -> bool:
@@ -93,7 +98,7 @@ def score_term(
     if exact_count > 0:
         score += WEIGHTS["exact_term_match"]
         # Grab first occurrence as excerpt
-        match = re.search(re.escape(lower_term), lower_text)
+        match = _term_pattern(lower_term).search(lower_text)
         if match:
             start = max(0, match.start() - 40)
             end = min(len(source_text), match.end() + 40)
@@ -108,7 +113,7 @@ def score_term(
             alias_count = _count_occurrences(alias.lower(), lower_text)
             if alias_count > 0:
                 score += WEIGHTS["alias_synonym_match"]
-                match = re.search(re.escape(alias.lower()), lower_text)
+                match = _term_pattern(alias.lower()).search(lower_text)
                 if match:
                     start = max(0, match.start() - 40)
                     end = min(len(source_text), match.end() + 40)
