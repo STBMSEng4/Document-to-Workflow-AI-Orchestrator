@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Literal
 
 
-SourceType = Literal["source_extracted", "template_default", "inferred"]
+SourceType = Literal["source_extracted", "template_default", "template_only", "inferred"]
 ConfidenceBand = Literal["confirmed", "high", "medium", "low", "weak"]
 
 
@@ -22,6 +22,8 @@ def confidence_band_for(score: float) -> ConfidenceBand:
 
 
 def default_review_reason(source_type: SourceType, confidence: float) -> str | None:
+    if source_type == "template_only":
+        return "equipment type not source-confirmed — template row excluded from default exports"
     if source_type == "template_default":
         return "template fallback row requires source verification"
     if source_type == "inferred":

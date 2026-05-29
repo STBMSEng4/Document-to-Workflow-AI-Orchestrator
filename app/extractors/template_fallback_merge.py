@@ -8,6 +8,12 @@ from app.schemas import EquipmentRecord, PointRecord
 from app.extractors.workflow_extractor import _POINTS
 
 
+# Equipment must reach this confidence before template defaults are included in
+# primary exports. Below threshold the rows are still generated (for display)
+# but labelled "template_only" and excluded by export_point_records().
+EQUIPMENT_TEMPLATE_THRESHOLD: float = 0.70
+
+
 _POINT_TYPE_OBJECT_MAP = {
     "AI": "analogInput",
     "AO": "analogOutput",
@@ -100,12 +106,30 @@ def merge_point_records_with_template_defaults(
     for equipment in equipment_records:
         tag = equipment.equipment_tag
         existing_keys = existing_keys_by_equipment.setdefault(tag, set())
+        # Determine label: only source-confirmed equipment (≥ threshold) earns
+        # "template_default"; unconfirmed equipment gets "template_only" so that
+        # export_point_records() can strip them from primary deliverables.
+        is_confirmed = equipment.confidence >= EQUIPMENT_TEMPLATE_THRESHOLD
+        template_label = "template_default" if is_confirmed else "template_only"
         template_points = build_template_point_records(equipment)
         for point in template_points:
             key = _normalized_key(point.point_name, point.point_code)
             if key in existing_keys:
                 continue
+            if template_label != "template_default":
+                point = point.model_copy(update={"source_type": template_label})
             merged.append(point)
             existing_keys.add(key)
 
     return merged
+
+
+def export_point_records(records: list[PointRecord]) -> list[PointRecord]:
+    """Return records with ``template_only`` rows removed.
+
+    Use this when building the primary I/O list exports (CSV / JSON / XLSX).
+    ``template_only`` rows are visible in the I/O List tab for review but are
+    intentionally excluded from deliverables because their parent equipment type
+    was not source-confirmed at the required confidence threshold.
+    """
+    return [r for r in records if r.source_type != "template_only"]
