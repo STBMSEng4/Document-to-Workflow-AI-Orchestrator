@@ -14,6 +14,8 @@ import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
+from app.parsers.ocr_gate import ocr_text_is_usable
+
 OUTPUTS_RAW = Path(__file__).parents[2] / "outputs" / "markdown" / "raw"
 NODE_HELPER = Path(__file__).with_name("pdf_inspector_node.mjs")
 
@@ -55,6 +57,10 @@ def save_raw_markdown(markdown: str, filename: str) -> str:
     return str(out_path)
 
 
+def _text_stats(text: str) -> tuple[int, int]:
+    return len(text), len(text.split())
+
+
 def _run_tesseract_ocr(file_path: str) -> str:
     tesseract_binary = shutil.which("tesseract")
     if not tesseract_binary:
@@ -92,6 +98,93 @@ def _run_tesseract_ocr(file_path: str) -> str:
         doc.close()
 
     return "\n\n".join(page_text).strip()
+
+
+def _extract_surya_pages(results_payload: dict, file_path: str) -> list[dict]:
+    path = Path(file_path)
+    candidates = [path.stem, path.name]
+
+    for candidate in candidates:
+        pages = results_payload.get(candidate)
+        if isinstance(pages, list):
+            return pages
+
+    if len(results_payload) == 1:
+        pages = next(iter(results_payload.values()))
+        if isinstance(pages, list):
+            return pages
+
+    raise RuntimeError("Surya OCR results.json did not contain pages for the requested file.")
+
+
+def _run_surya_ocr(file_path: str) -> str:
+    surya_binary = shutil.which("surya_ocr")
+    if not surya_binary:
+        raise RuntimeError("Surya OCR is not installed. Install surya-ocr to enable this OCR fallback.")
+
+    with tempfile.TemporaryDirectory(prefix="specflow_surya_") as tmpdir:
+        tmpdir_path = Path(tmpdir)
+        completed = subprocess.run(
+            [surya_binary, file_path, "--output_dir", str(tmpdir_path)],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+        if completed.returncode != 0:
+            stderr = completed.stderr.strip() or completed.stdout.strip() or "Unknown Surya OCR error"
+            raise RuntimeError(stderr)
+
+        results_path = tmpdir_path / "results.json"
+        if not results_path.exists():
+            raise RuntimeError("Surya OCR did not produce results.json.")
+
+        try:
+            results_payload = json.loads(results_path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as exc:
+            raise RuntimeError(f"Invalid Surya OCR results.json: {exc}") from exc
+
+    pages = _extract_surya_pages(results_payload, file_path)
+    page_markdown: list[str] = []
+
+    for page_index, page in enumerate(pages, start=1):
+        text_lines = page.get("text_lines") or []
+        lines: list[str] = []
+        for entry in text_lines:
+            text = str((entry or {}).get("text") or "").strip()
+            if text:
+                lines.append(text)
+        if lines:
+            page_markdown.append(f"## OCR Page {page_index}\n\n" + "\n".join(lines))
+
+    return "\n\n".join(page_markdown).strip()
+
+
+def _run_ocr_fallback_chain(file_path: str) -> tuple[str, str | None, list[str]]:
+    errors: list[str] = []
+
+    for engine_name, runner in (("surya", _run_surya_ocr), ("tesseract", _run_tesseract_ocr)):
+        try:
+            candidate_text = runner(file_path).strip()
+        except Exception as exc:
+            errors.append(f"{engine_name.title()} OCR error: {exc}")
+            continue
+
+        if not candidate_text:
+            errors.append(f"{engine_name.title()} OCR returned no text.")
+            continue
+
+        char_count, word_count = _text_stats(candidate_text)
+        if not ocr_text_is_usable(char_count, word_count):
+            errors.append(
+                f"{engine_name.title()} OCR returned too little text "
+                f"({char_count} chars / {word_count} words)."
+            )
+            continue
+
+        return candidate_text, engine_name, errors
+
+    return "", None, errors
 
 
 def build_pdf_metadata(
@@ -181,7 +274,7 @@ def inspect_pdf(file_path: str) -> dict:
         try:
             import pymupdf4llm  # type: ignore
 
-            raw_markdown = pymupdf4llm.to_markdown(str(path))
+            raw_markdown = pymupdf4llm.to_markdown(str(path)).strip()
             pages_preview = [raw_markdown[i : i + 500] for i in range(0, min(len(raw_markdown), 5000), 500)]
             classification = _classify_pdf(pages_preview)
             errors.append("Fell back to pymupdf4llm because Firecrawl pdf-inspector was unavailable.")
@@ -196,27 +289,26 @@ def inspect_pdf(file_path: str) -> dict:
         }
     )
 
-    if not raw_markdown.strip() and not ocr_needed:
+    if not raw_markdown and not ocr_needed:
         classification = "empty_or_failed_parse" if not errors else classification
 
-    if ocr_needed and not raw_markdown.strip():
-        try:
-            raw_markdown = _run_tesseract_ocr(str(path))
-            if raw_markdown.strip():
-                ocr_applied = True
-                ocr_engine = "tesseract"
-                errors.append("Applied OCR fallback via Tesseract because the PDF is scanned or image-heavy.")
-            else:
-                errors.append(
-                    "PDF appears to be scanned or image-heavy. OCR ran but did not recover usable text."
-                )
-        except Exception as ocr_exc:
-            errors.append(f"OCR fallback error: {ocr_exc}")
+    if ocr_needed and not raw_markdown:
+        ocr_text, selected_engine, ocr_errors = _run_ocr_fallback_chain(str(path))
+        errors.extend(ocr_errors)
+
+        if ocr_text:
+            raw_markdown = ocr_text
+            ocr_applied = True
+            ocr_engine = selected_engine
+            errors.append(
+                f"Applied OCR fallback via {selected_engine.title()} because the PDF is scanned or image-heavy."
+            )
+        else:
             errors.append(
                 "PDF appears to be scanned or image-heavy. OCR text is required before workflow extraction can continue."
             )
 
-    status = "ocr_required" if ocr_needed and not raw_markdown.strip() else ("failed" if not raw_markdown.strip() else "success")
+    status = "ocr_required" if ocr_needed and not raw_markdown else ("failed" if not raw_markdown else "success")
     metadata = build_pdf_metadata(
         file_path,
         raw_markdown,
@@ -236,7 +328,7 @@ def inspect_pdf(file_path: str) -> dict:
         "pdf_classification": classification,
         "raw_markdown": raw_markdown,
         "metadata": metadata,
-        "ocr_required": ocr_needed and not raw_markdown.strip(),
+        "ocr_required": ocr_needed and not raw_markdown,
         "ocr_applied": ocr_applied,
         "status": status,
         "errors": errors,

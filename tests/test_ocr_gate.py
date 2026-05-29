@@ -2,7 +2,7 @@
 
 import unittest
 
-from app.parsers.ocr_gate import is_blocked, is_warned, ocr_quality
+from app.parsers.ocr_gate import is_blocked, is_warned, ocr_quality, ocr_text_is_usable
 
 
 def _result(**kwargs) -> dict:
@@ -16,6 +16,13 @@ def _result(**kwargs) -> dict:
     }
     base.update(kwargs)
     return base
+
+
+class TestOCRGateHelper(unittest.TestCase):
+    def test_ocr_text_is_usable_requires_both_thresholds(self) -> None:
+        self.assertTrue(ocr_text_is_usable(200, 30))
+        self.assertFalse(ocr_text_is_usable(199, 30))
+        self.assertFalse(ocr_text_is_usable(200, 29))
 
 
 class TestOCRGateOK(unittest.TestCase):
@@ -47,18 +54,22 @@ class TestOCRGateBlocked(unittest.TestCase):
         self.assertIn("OCR was not available", msg)
 
     def test_ocr_applied_with_too_few_chars_is_blocked(self) -> None:
-        level, msg = ocr_quality(_result(
-            ocr_applied=True,
-            metadata={"char_count": 50, "word_count": 8},
-        ))
+        level, msg = ocr_quality(
+            _result(
+                ocr_applied=True,
+                metadata={"char_count": 50, "word_count": 8},
+            )
+        )
         self.assertEqual(level, "blocked")
         self.assertIn("50 characters", msg)
 
     def test_ocr_applied_with_too_few_words_is_blocked(self) -> None:
-        level, msg = ocr_quality(_result(
-            ocr_applied=True,
-            metadata={"char_count": 500, "word_count": 10},
-        ))
+        level, msg = ocr_quality(
+            _result(
+                ocr_applied=True,
+                metadata={"char_count": 500, "word_count": 10},
+            )
+        )
         self.assertEqual(level, "blocked")
         self.assertIn("10 words", msg)
 
@@ -75,12 +86,23 @@ class TestOCRGateBlocked(unittest.TestCase):
 
 class TestOCRGateWarn(unittest.TestCase):
     def test_ocr_applied_with_enough_text_is_warn(self) -> None:
-        level, msg = ocr_quality(_result(
-            ocr_applied=True,
-            metadata={"char_count": 3000, "word_count": 500},
-        ))
+        level, msg = ocr_quality(
+            _result(
+                ocr_applied=True,
+                metadata={"char_count": 3000, "word_count": 500},
+            )
+        )
         self.assertEqual(level, "warn")
         self.assertIn("OCR was applied", msg)
+
+    def test_surya_ocr_metadata_is_still_warn(self) -> None:
+        level, _ = ocr_quality(
+            _result(
+                ocr_applied=True,
+                metadata={"char_count": 3000, "word_count": 500, "ocr_engine": "surya"},
+            )
+        )
+        self.assertEqual(level, "warn")
 
     def test_mixed_pdf_without_ocr_is_warn(self) -> None:
         level, msg = ocr_quality(_result(pdf_classification="mixed_pdf"))
@@ -88,10 +110,14 @@ class TestOCRGateWarn(unittest.TestCase):
         self.assertIn("mix", msg)
 
     def test_is_warned_helper_true_when_warned(self) -> None:
-        self.assertTrue(is_warned(_result(
-            ocr_applied=True,
-            metadata={"char_count": 3000, "word_count": 500},
-        )))
+        self.assertTrue(
+            is_warned(
+                _result(
+                    ocr_applied=True,
+                    metadata={"char_count": 3000, "word_count": 500},
+                )
+            )
+        )
 
     def test_is_warned_helper_false_when_ok(self) -> None:
         self.assertFalse(is_warned(_result()))
@@ -100,10 +126,12 @@ class TestOCRGateWarn(unittest.TestCase):
         self.assertFalse(is_warned(_result(status="failed")))
 
     def test_warn_has_non_empty_message(self) -> None:
-        _, msg = ocr_quality(_result(
-            ocr_applied=True,
-            metadata={"char_count": 3000, "word_count": 500},
-        ))
+        _, msg = ocr_quality(
+            _result(
+                ocr_applied=True,
+                metadata={"char_count": 3000, "word_count": 500},
+            )
+        )
         self.assertTrue(len(msg) > 0)
 
 
@@ -112,28 +140,30 @@ class TestOCRGateEdgeCases(unittest.TestCase):
         result = _result(ocr_applied=True)
         result["metadata"] = None
         level, _ = ocr_quality(result)
-        # No metadata means char_count=0 → blocked
         self.assertEqual(level, "blocked")
 
     def test_zero_char_count_without_ocr_is_not_blocked(self) -> None:
-        # If OCR was not applied, char_count=0 isn't the OCR gate's concern
         level, _ = ocr_quality(_result(metadata={"char_count": 0, "word_count": 0}))
         self.assertEqual(level, "ok")
 
     def test_scanned_pdf_requiring_ocr_is_blocked(self) -> None:
-        level, _ = ocr_quality(_result(
-            pdf_classification="scanned_pdf",
-            ocr_required=True,
-            ocr_applied=False,
-        ))
+        level, _ = ocr_quality(
+            _result(
+                pdf_classification="scanned_pdf",
+                ocr_required=True,
+                ocr_applied=False,
+            )
+        )
         self.assertEqual(level, "blocked")
 
     def test_image_heavy_pdf_requiring_ocr_is_blocked(self) -> None:
-        level, _ = ocr_quality(_result(
-            pdf_classification="image_heavy_pdf",
-            ocr_required=True,
-            ocr_applied=False,
-        ))
+        level, _ = ocr_quality(
+            _result(
+                pdf_classification="image_heavy_pdf",
+                ocr_required=True,
+                ocr_applied=False,
+            )
+        )
         self.assertEqual(level, "blocked")
 
 

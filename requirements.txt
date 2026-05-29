@@ -10,3 +10,4 @@ firecrawl-py
 markdown
 python-docx
 openpyxl
+surya-ocr
