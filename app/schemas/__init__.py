@@ -3,6 +3,7 @@
 from .components import ActuatorRecord, DamperRecord, SensorRecord, ValveRecord
 from .equipment import EquipmentRecord
 from .points import PointRecord
+from .soo import SOORecord
 from .vocabulary import VocabularyTerm
 
 __all__ = [
@@ -10,6 +11,7 @@ __all__ = [
     "DamperRecord",
     "EquipmentRecord",
     "PointRecord",
+    "SOORecord",
     "SensorRecord",
     "ValveRecord",
     "VocabularyTerm",
