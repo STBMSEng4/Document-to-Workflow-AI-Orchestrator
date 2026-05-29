@@ -55,6 +55,14 @@ def save_raw_markdown(markdown: str, filename: str) -> str:
     return str(out_path)
 
 
+def _text_stats(text: str) -> tuple[int, int]:
+    return len(text), len(text.split())
+
+
+def _ocr_text_is_usable(char_count: int, word_count: int) -> bool:
+    return char_count >= 200 and word_count >= 30
+
+
 def _run_tesseract_ocr(file_path: str) -> str:
     tesseract_binary = shutil.which("tesseract")
     if not tesseract_binary:
@@ -92,6 +100,47 @@ def _run_tesseract_ocr(file_path: str) -> str:
         doc.close()
 
     return "\n\n".join(page_text).strip()
+
+
+def _run_ocr_fallback_chain(file_path: str) -> tuple[str, str | None, list[str]]:
+    errors: list[str] = []
+
+    try:
+        candidate_text = _run_tesseract_ocr(file_path).strip()
+    except Exception as exc:
+        errors.append(f"Tesseract OCR error: {exc}")
+        return "", None, errors
+
+    if not candidate_text:
+        errors.append("Tesseract OCR returned no text.")
+        return "", None, errors
+
+    char_count, word_count = _text_stats(candidate_text)
+    if not _ocr_text_is_usable(char_count, word_count):
+        errors.append(
+            f"Tesseract OCR returned too little text ({char_count} chars / {word_count} words)."
+        )
+        return "", None, errors
+
+    return candidate_text, "tesseract", errors
+
+
+def _looks_like_missed_point_list(markdown_text: str) -> bool:
+    from app.extractors.points_list_extractor import extract_point_records
+
+    lower = markdown_text.lower()
+    point_list_hints = (
+        "bas point list",
+        "point description",
+        "point type",
+        "field device type",
+        "alarm to bas",
+        "i/o list",
+        "io list",
+    )
+    if not any(hint in lower for hint in point_list_hints):
+        return False
+    return len(extract_point_records(markdown_text)) == 0
 
 
 def build_pdf_metadata(
@@ -200,20 +249,28 @@ def inspect_pdf(file_path: str) -> dict:
         classification = "empty_or_failed_parse" if not errors else classification
 
     if ocr_needed and not raw_markdown.strip():
-        try:
-            raw_markdown = _run_tesseract_ocr(str(path))
-            if raw_markdown.strip():
-                ocr_applied = True
-                ocr_engine = "tesseract"
-                errors.append("Applied OCR fallback via Tesseract because the PDF is scanned or image-heavy.")
-            else:
-                errors.append(
-                    "PDF appears to be scanned or image-heavy. OCR ran but did not recover usable text."
-                )
-        except Exception as ocr_exc:
-            errors.append(f"OCR fallback error: {ocr_exc}")
+        ocr_text, selected_engine, ocr_errors = _run_ocr_fallback_chain(str(path))
+        errors.extend(ocr_errors)
+        if ocr_text:
+            raw_markdown = ocr_text
+            ocr_applied = True
+            ocr_engine = selected_engine
+            errors.append("Applied OCR fallback via Tesseract because the PDF is scanned or image-heavy.")
+        else:
             errors.append(
                 "PDF appears to be scanned or image-heavy. OCR text is required before workflow extraction can continue."
+            )
+
+    should_rescue_points = bool(raw_markdown) and not ocr_applied and _looks_like_missed_point_list(raw_markdown)
+    if should_rescue_points:
+        ocr_text, selected_engine, ocr_errors = _run_ocr_fallback_chain(str(path))
+        errors.extend(ocr_errors)
+        if ocr_text:
+            raw_markdown = f"{raw_markdown.strip()}\n\n{ocr_text}".strip()
+            ocr_applied = True
+            ocr_engine = selected_engine
+            errors.append(
+                "Applied OCR fallback via Tesseract to recover likely missed point-list content."
             )
 
     status = "ocr_required" if ocr_needed and not raw_markdown.strip() else ("failed" if not raw_markdown.strip() else "success")
