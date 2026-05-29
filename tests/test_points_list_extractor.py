@@ -4,6 +4,45 @@ from app.extractors.equipment_extractor import extract_equipment_records
 from app.extractors.points_list_extractor import extract_point_records
 
 
+class PointExtractorHeaderAliasTests(unittest.TestCase):
+    """Bare 'Equipment' and 'Type' column headers map to the correct fields."""
+
+    _MARKDOWN = (
+        "## Points List\n\n"
+        "| Equipment | Point Name | Code | Type | Unit |\n"
+        "|-----------|------------|------|------|------|\n"
+        "| AHU-1 | Supply Air Temperature | SAT | AI | degF |\n"
+        "| AHU-1 | Supply Fan Command | SF-CMD | DO | |\n"
+        "| RTU-1 | Discharge Air Temp | DAT | AI | degF |\n"
+    )
+
+    def _records(self) -> list:
+        return extract_point_records(self._MARKDOWN)
+
+    def test_bare_equipment_column_maps_to_equipment_tag(self) -> None:
+        records = self._records()
+        self.assertTrue(len(records) > 0)
+        for rec in records:
+            self.assertIsNotNone(rec.equipment_tag)
+            self.assertIn(rec.equipment_tag, {"AHU-1", "RTU-1"})
+
+    def test_type_column_ai_maps_to_point_type(self) -> None:
+        records = self._records()
+        ai_recs = [r for r in records if r.point_name == "Supply Air Temperature"]
+        self.assertEqual(len(ai_recs), 1)
+        self.assertEqual(ai_recs[0].point_type, "AI")
+
+    def test_type_column_do_maps_to_point_type(self) -> None:
+        records = self._records()
+        do_recs = [r for r in records if r.point_name == "Supply Fan Command"]
+        self.assertEqual(len(do_recs), 1)
+        self.assertEqual(do_recs[0].point_type, "DO")
+
+    def test_correct_record_count_no_spurious_entries(self) -> None:
+        records = self._records()
+        self.assertEqual(len(records), 3)
+
+
 class PointExtractorTests(unittest.TestCase):
     def test_extract_point_records_from_markdown_table(self) -> None:
         markdown = """## Sheet: Equipment Schedule

@@ -24,7 +24,7 @@ _POINT_HEADER_HINTS = {
 }
 
 _POINT_HEADER_MAP = {
-    "equipment_tag": {"equipment_tag", "tag", "device_tag", "unit_tag"},
+    "equipment_tag": {"equipment_tag", "equipment", "tag", "device_tag", "unit_tag"},
     "equipment_type": {"equipment_type", "unit_type", "device_type"},
     "controller_tag": {"controller", "controller_tag", "ddc_controller"},
     "controller_model": {"controller_model"},
@@ -32,7 +32,7 @@ _POINT_HEADER_MAP = {
     "point_name": {"point_name", "point", "name", "description", "point_description"},
     "normalized_point_name": {"normalized_point_name"},
     "point_code": {"point_code", "abbr", "abbreviation", "code", "point_id"},
-    "point_type": {"io", "io_type", "point_type", "object_type_short"},
+    "point_type": {"io", "io_type", "point_type", "type", "object_type_short"},
     "signal_type": {"signal", "signal_type"},
     "engineering_unit": {"unit", "units", "engineering_unit"},
     "object_type": {"object_type", "bacnet_object_type"},

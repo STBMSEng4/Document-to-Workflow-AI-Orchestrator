@@ -3,6 +3,46 @@ import unittest
 from app.extractors.equipment_extractor import extract_equipment_records
 
 
+class EquipmentExtractorDisambiguationTests(unittest.TestCase):
+    """Equipment extractor must not misclassify points tables as equipment."""
+
+    def test_points_table_not_classified_as_equipment(self) -> None:
+        markdown = (
+            "## Points List\n\n"
+            "| Equipment | Point Name | Code | Type | Unit |\n"
+            "|-----------|------------|------|------|------|\n"
+            "| AHU-1 | Supply Air Temperature | SAT | AI | degF |\n"
+            "| AHU-1 | Supply Fan Status | SF-STS | DI | |\n"
+        )
+        records = extract_equipment_records(markdown)
+        self.assertEqual(len(records), 0)
+
+    def test_mixed_doc_equipment_only_from_equipment_table(self) -> None:
+        markdown = (
+            "## Equipment Schedule\n\n"
+            "| Tag | Type | Manufacturer |\n"
+            "|-----|------|---------------|\n"
+            "| AHU-1 | AHU | Carrier |\n\n"
+            "## Points List\n\n"
+            "| Equipment | Point Name | Code | Type | Unit |\n"
+            "|-----------|------------|------|------|------|\n"
+            "| AHU-1 | Supply Air Temperature | SAT | AI | degF |\n"
+        )
+        records = extract_equipment_records(markdown)
+        self.assertEqual(len(records), 1)
+        self.assertEqual(records[0].equipment_tag, "AHU-1")
+
+    def test_table_with_abbreviation_header_not_classified_as_equipment(self) -> None:
+        markdown = (
+            "## I/O Schedule\n\n"
+            "| Tag | Type | Abbreviation | Unit |\n"
+            "|-----|------|--------------|------|\n"
+            "| AHU-1 | AI | SAT | °F |\n"
+        )
+        records = extract_equipment_records(markdown)
+        self.assertEqual(len(records), 0)
+
+
 class EquipmentExtractorTests(unittest.TestCase):
     def test_extract_equipment_records_from_markdown_table(self) -> None:
         markdown = """## Sheet: Equipment Schedule

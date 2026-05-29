@@ -30,6 +30,12 @@ _EQUIPMENT_STRONG_HINTS = {
     "manufacturer",
 }
 
+# If any of these headers are present the table is a points list, not an equipment schedule.
+_POINT_TABLE_EXCLUSIONS = {
+    "point_name", "point", "code", "abbr", "io", "io_type",
+    "point_code", "abbreviation",
+}
+
 _HEADER_MAP = {
     "equipment_tag": {"tag", "equipment_tag", "unit", "unit_tag", "device_tag", "equip_tag"},
     "equipment_name": {"equipment", "equipment_name", "name", "description", "unit_name"},
@@ -285,6 +291,9 @@ def _infer_equipment_type(raw: str, mapping: dict[str, str]) -> str | None:
 
 def _looks_like_equipment_table(table: MarkdownTable) -> bool:
     header_set = set(table.headers)
+    # Reject immediately if the table contains point-list-specific headers.
+    if header_set & _POINT_TABLE_EXCLUSIONS:
+        return False
     hint_count = len(header_set & _EQUIPMENT_HEADER_HINTS)
     strong_hint_count = len(header_set & _EQUIPMENT_STRONG_HINTS)
     return hint_count >= 2 and strong_hint_count >= 1

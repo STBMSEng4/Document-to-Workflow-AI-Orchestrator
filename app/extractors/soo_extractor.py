@@ -116,18 +116,20 @@ _NAMED_SETPOINT_RE = re.compile(
     r"supply air temperature|return air temperature|"
     r"discharge air temperature|space temperature|"
     r"setback heating|setback cooling|night setback)\s*setpoint)"
-    r"(?:\s+of)?\s+(?:of\s+)?(\d+(?:\.\d+)?)\s*(°?[Ff]|°?[Cc]|%|psi|in\.?\s*wc|inwc|cfm)?",
+    r"(?:\s+of)?\s+(?:of\s+)?(\d+(?:\.\d+)?)\s*(deg\s*[Ff]|deg\s*[Cc]|°?[Ff]|°?[Cc]|%|psi|in\.?\s*wc|inwc|cfm)?",
     re.IGNORECASE,
 )
 
 # Matches any bare numeric value + unit (fallback for unlabeled setpoints).
 _BARE_VALUE_RE = re.compile(
-    r"(\d+(?:\.\d+)?)\s*(°F|°C|%|psi|in\.?\s*WC|in\.?\s*wc|inwc|cfm|fpm|°f|°c)",
+    r"(\d+(?:\.\d+)?)\s*(deg\s*[Ff]|deg\s*[Cc]|°F|°C|%|psi|in\.?\s*WC|in\.?\s*wc|inwc|cfm|fpm|°f|°c)",
     re.IGNORECASE,
 )
 
 _UNIT_NORMALIZE: dict[str, str] = {
     "f": "°F", "°f": "°F", "c": "°C", "°c": "°C",
+    "degf": "°F", "degc": "°C",
+    "deg f": "°F", "deg c": "°C",
     "%": "%", "psi": "psi",
     "in. wc": "in. WC", "in.wc": "in. WC", "inwc": "in. WC",
     "cfm": "CFM", "fpm": "FPM",
@@ -327,12 +329,18 @@ def extract_soo_records(markdown_text: str) -> list[SOORecord]:
     # Track equipment from section context (header lines like "RTU-1: Occupied Mode")
     context_equip_tag: str | None = None
     context_equip_type: str | None = None
+    # Carry-forward for condition-only lines (e.g. "When X drops below 55 degF,\nvalve shall open")
+    pending_condition: str | None = None
+    pending_setpoint: tuple[str | None, float | None, str | None] = (None, None, None)
 
     for line in lines:
         stripped = line.strip()
 
         # --- Section header detection ---
         if _HEADER_RE.match(stripped) or (stripped.endswith(":") and len(stripped) < 80):
+            # Clear any dangling condition that didn't find its action line
+            pending_condition = None
+            pending_setpoint = (None, None, None)
             detected_mode = _detect_mode(stripped)
             if detected_mode:
                 current_mode = detected_mode
@@ -360,12 +368,32 @@ def extract_soo_records(markdown_text: str) -> list[SOORecord]:
 
         sentence = _extract_sentence_text(stripped)
 
+        # Condition-only line: has a condition prefix (When/If/…) but no action verb.
+        # Save the condition (and any setpoint in it) for the next action sentence.
+        _has_action = bool(_ACTION_VERBS.search(sentence))
+        _has_cond_prefix = bool(_CONDITION_RE.match(sentence.strip()))
+        if _has_cond_prefix and not _has_action:
+            m = _CONDITION_RE.match(sentence.strip())
+            pending_condition = m.group(1).strip().rstrip(",;") if m else None
+            pending_setpoint = _extract_setpoint(sentence)
+            continue
+
         # Must contain an action verb to be worth extracting
-        if not _ACTION_VERBS.search(sentence):
+        if not _has_action:
             continue
 
         condition, action = _split_condition_action(sentence)
+
+        # If no inline condition clause, attach any carried-forward condition
+        if condition is None and pending_condition is not None:
+            condition = pending_condition
+        pending_condition = None  # consumed or abandoned
+
         setpoint_name, setpoint_value, setpoint_unit = _extract_setpoint(sentence)
+        # Fall back to the setpoint captured from the condition-only line
+        if setpoint_value is None and pending_setpoint[1] is not None:
+            setpoint_name, setpoint_value, setpoint_unit = pending_setpoint
+        pending_setpoint = (None, None, None)  # consumed or abandoned
         safety = _is_safety_critical(sentence)
 
         # Equipment tag: prefer inline over context

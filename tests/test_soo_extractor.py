@@ -281,5 +281,119 @@ class TestSOOExtractorConfidence(unittest.TestCase):
         self.assertEqual(records[0].source_type, "inferred")
 
 
+class TestSOOExtractorDegreeUnit(unittest.TestCase):
+    """degF / degC unit variants are parsed correctly."""
+
+    def test_degF_recognized_as_setpoint_unit(self) -> None:
+        text = (
+            "## Occupied Mode\n\n"
+            "The DDC shall maintain the supply air temperature setpoint of 55 degF "
+            "by modulating the chilled water valve.\n"
+        )
+        records = extract_soo_records(text)
+        self.assertGreater(len(records), 0)
+        self.assertAlmostEqual(records[0].setpoint_value, 55.0)
+        self.assertEqual(records[0].setpoint_unit, "°F")
+
+    def test_degC_recognized_as_setpoint_unit(self) -> None:
+        text = (
+            "## Occupied Mode\n\n"
+            "The unit shall maintain the space temperature setpoint of 22 degC "
+            "by enabling the heating coil.\n"
+        )
+        records = extract_soo_records(text)
+        self.assertGreater(len(records), 0)
+        self.assertAlmostEqual(records[0].setpoint_value, 22.0)
+        self.assertEqual(records[0].setpoint_unit, "°C")
+
+    def test_bare_degF_captured_as_setpoint_value(self) -> None:
+        text = (
+            "## Unoccupied Mode\n\n"
+            "If the outdoor air temperature drops below 35 degF the freeze "
+            "protection stat shall activate.\n"
+        )
+        records = extract_soo_records(text)
+        self.assertGreater(len(records), 0)
+        self.assertAlmostEqual(records[0].setpoint_value, 35.0)
+        self.assertEqual(records[0].setpoint_unit, "°F")
+
+    def test_degF_with_space_recognized(self) -> None:
+        text = (
+            "## Occupied Mode\n\n"
+            "The controller shall maintain the cooling setpoint of 75 deg F "
+            "by staging the compressor.\n"
+        )
+        records = extract_soo_records(text)
+        self.assertGreater(len(records), 0)
+        self.assertAlmostEqual(records[0].setpoint_value, 75.0)
+        self.assertEqual(records[0].setpoint_unit, "°F")
+
+
+class TestSOOExtractorPendingCondition(unittest.TestCase):
+    """Multi-line condition + action sentences are stitched into one record."""
+
+    def test_condition_on_one_line_action_on_next_linked(self) -> None:
+        text = (
+            "## Occupied Mode\n\n"
+            "When the supply air temperature drops below the cooling setpoint of 55 degF,\n"
+            "the chilled water valve shall modulate open to maintain discharge temperature.\n"
+        )
+        records = extract_soo_records(text)
+        self.assertGreater(len(records), 0)
+        rec = records[0]
+        self.assertIsNotNone(rec.condition)
+        self.assertIn("supply air temperature", rec.condition.lower())
+
+    def test_setpoint_from_condition_line_carried_to_action(self) -> None:
+        text = (
+            "## Occupied Mode\n\n"
+            "When the supply air temperature drops below the cooling setpoint of 55 degF,\n"
+            "the chilled water valve shall modulate open to maintain discharge temperature.\n"
+        )
+        records = extract_soo_records(text)
+        self.assertGreater(len(records), 0)
+        rec = records[0]
+        self.assertAlmostEqual(rec.setpoint_value, 55.0)
+        self.assertEqual(rec.setpoint_unit, "°F")
+
+    def test_split_condition_action_produces_one_record_not_two(self) -> None:
+        """The condition-only line must not produce its own record."""
+        text = (
+            "## Occupied Mode\n\n"
+            "When the supply air temperature drops below the cooling setpoint of 55 degF,\n"
+            "the chilled water valve shall modulate open to maintain discharge temperature.\n"
+        )
+        records = extract_soo_records(text)
+        # The condition line alone has no action verb; only the action line becomes a record.
+        self.assertEqual(len(records), 1)
+
+    def test_pending_condition_cleared_on_new_section(self) -> None:
+        """A pending condition must not bleed across section headers."""
+        text = (
+            "## Occupied Mode\n\n"
+            "When the supply air temperature drops below the cooling setpoint of 55 degF,\n\n"
+            "## Unoccupied Mode\n\n"
+            "The supply fan shall disable when the building transitions to unoccupied.\n"
+        )
+        records = extract_soo_records(text)
+        unoccupied = [r for r in records if r.mode == "unoccupied"]
+        self.assertGreater(len(unoccupied), 0)
+        # The unoccupied step should NOT have inherited the occupied-mode condition
+        self.assertIsNone(unoccupied[0].condition)
+
+    def test_inline_condition_not_overridden_by_pending(self) -> None:
+        """If the action sentence has its own inline condition (comma-delimited), use that."""
+        text = (
+            "## Occupied Mode\n\n"
+            "When the supply air temperature drops below 55 degF,\n"
+            "when the economizer is active, the supply fan shall enable at low speed.\n"
+        )
+        records = extract_soo_records(text)
+        self.assertGreater(len(records), 0)
+        rec = records[0]
+        # Inline condition from the action sentence wins (comma makes it parseable)
+        self.assertIn("economizer", rec.condition.lower())
+
+
 if __name__ == "__main__":
     unittest.main()
