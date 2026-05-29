@@ -13,9 +13,18 @@ import streamlit as st
 # Allow imports from project root.
 sys.path.insert(0, str(Path(__file__).parents[2]))
 
-from app.exporters import flatten_records, rows_to_csv_bytes, rows_to_dataframe, tables_to_xlsx_bytes
+from app.exporters import (
+    equipment_records_to_markdown,
+    flatten_records,
+    point_records_to_markdown,
+    rows_to_csv_bytes,
+    rows_to_dataframe,
+    soo_records_to_markdown,
+    tables_to_xlsx_bytes,
+)
 from app.extractors.equipment_extractor import extract_equipment_records
 from app.extractors.points_list_extractor import extract_point_records
+from app.extractors.soo_extractor import extract_soo_records
 from app.extractors.template_fallback_merge import merge_point_records_with_template_defaults
 from app.extractors.workflow_extractor import extract_workflow_items
 from app.normalizers.markdown_normalizer import normalize_text
@@ -125,6 +134,7 @@ for key, default in {
     "equipment_records": [],
     "point_records": [],
     "merged_point_records": [],
+    "soo_records": [],
     "matrix_mode": "workflow",
 }.items():
     if key not in st.session_state:
@@ -233,10 +243,12 @@ with tabs[0]:
             equipment_records = extract_equipment_records(normalized)
             point_records = extract_point_records(normalized, equipment_records=equipment_records)
             merged_point_records = merge_point_records_with_template_defaults(point_records, equipment_records)
+            soo_records = extract_soo_records(normalized)
 
             st.session_state.equipment_records = equipment_records
             st.session_state.point_records = point_records
             st.session_state.merged_point_records = merged_point_records
+            st.session_state.soo_records = soo_records
 
             workflow_items = extract_workflow_items(
                 normalized,
@@ -466,109 +478,165 @@ with tabs[7]:
 
 with tabs[8]:
     st.header("Exports")
-    if st.session_state.scored_terms:
+    if not st.session_state.scored_terms:
+        st.info("Run SpecFlow AI on the Upload tab first.")
+    else:
         equipment_records = st.session_state.equipment_records
-        point_records = st.session_state.point_records
         merged_point_records = st.session_state.merged_point_records
+        soo_records = st.session_state.soo_records
+        point_records = st.session_state.point_records
 
         equipment_rows = flatten_records(equipment_records)
-        point_rows = flatten_records(merged_point_records)
+        io_rows = flatten_records(merged_point_records)
+        soo_rows = flatten_records(soo_records)
         source_point_rows = flatten_records(point_records)
 
-        col1, col2, col3 = st.columns(3)
+        # ── Primary deliverables ─────────────────────────────────────────────
+        st.subheader("Primary Deliverables")
+        st.caption("Equipment schedule, I/O list, and sequence of operations — the three core outputs.")
 
-        with col1:
-            st.subheader("Structured JSON")
-            st.download_button(
-                label="Download Equipment (JSON)",
-                data=json.dumps(_record_dicts(equipment_records), indent=2),
-                file_name="specflow_equipment.json",
-                mime="application/json",
-            )
-            st.download_button(
-                label="Download Points (JSON)",
-                data=json.dumps(_record_dicts(merged_point_records), indent=2),
-                file_name="specflow_points.json",
-                mime="application/json",
-            )
+        col_eq, col_io, col_soo = st.columns(3)
 
-        with col2:
-            st.subheader("Structured CSV")
+        with col_eq:
+            st.markdown("**Equipment**")
             st.download_button(
-                label="Download Equipment (CSV)",
+                "equipment.csv",
                 data=rows_to_csv_bytes(equipment_rows),
-                file_name="specflow_equipment.csv",
+                file_name="equipment.csv",
                 mime="text/csv",
+                use_container_width=True,
             )
             st.download_button(
-                label="Download Points (CSV)",
-                data=rows_to_csv_bytes(point_rows),
-                file_name="specflow_points.csv",
-                mime="text/csv",
+                "equipment.json",
+                data=json.dumps(_record_dicts(equipment_records), indent=2),
+                file_name="equipment.json",
+                mime="application/json",
+                use_container_width=True,
+            )
+            st.download_button(
+                "equipment.md",
+                data=equipment_records_to_markdown(equipment_records),
+                file_name="equipment.md",
+                mime="text/markdown",
+                use_container_width=True,
             )
 
-        with col3:
-            st.subheader("Workbook")
-            workbook_bytes = tables_to_xlsx_bytes(
-                {
-                    "Equipment": equipment_rows,
-                    "Points": point_rows,
-                    "SourcePoints": source_point_rows,
-                }
+        with col_io:
+            st.markdown("**I/O List**")
+            st.download_button(
+                "io_list.csv",
+                data=rows_to_csv_bytes(io_rows),
+                file_name="io_list.csv",
+                mime="text/csv",
+                use_container_width=True,
             )
             st.download_button(
-                label="Download Equipment + Points (XLSX)",
-                data=workbook_bytes,
-                file_name="specflow_equipment_points.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                "io_list.json",
+                data=json.dumps(_record_dicts(merged_point_records), indent=2),
+                file_name="io_list.json",
+                mime="application/json",
+                use_container_width=True,
             )
+            st.download_button(
+                "io_list.md",
+                data=point_records_to_markdown(merged_point_records),
+                file_name="io_list.md",
+                mime="text/markdown",
+                use_container_width=True,
+            )
+
+        with col_soo:
+            st.markdown("**Sequence of Operations**")
+            if soo_records:
+                st.download_button(
+                    "soo.csv",
+                    data=rows_to_csv_bytes(soo_rows),
+                    file_name="soo.csv",
+                    mime="text/csv",
+                    use_container_width=True,
+                )
+                st.download_button(
+                    "soo.json",
+                    data=json.dumps(_record_dicts(soo_records), indent=2),
+                    file_name="soo.json",
+                    mime="application/json",
+                    use_container_width=True,
+                )
+                st.download_button(
+                    "soo.md",
+                    data=soo_records_to_markdown(soo_records),
+                    file_name="soo.md",
+                    mime="text/markdown",
+                    use_container_width=True,
+                )
+            else:
+                st.caption("No SOO content detected in this document.")
 
         st.divider()
 
-        col4, col5 = st.columns(2)
-        with col4:
-            st.subheader("Detection Matrix")
-            matrix_json = json.dumps(build_json_matrix(st.session_state.scored_terms), indent=2)
-            st.download_button(
-                label="Download Detection Matrix (JSON)",
-                data=matrix_json,
-                file_name="specflow_detection_matrix.json",
-                mime="application/json",
-            )
-            st.download_button(
-                label="Download Detection Matrix (Markdown)",
-                data=build_markdown_matrix(st.session_state.scored_terms, mode="workflow"),
-                file_name="specflow_detection_matrix.md",
-                mime="text/markdown",
-            )
-            st.download_button(
-                label="Download Filtering Summary (Markdown)",
-                data=build_filter_markdown(
-                    st.session_state.filter_results,
-                    st.session_state.template_decisions,
-                ),
-                file_name="specflow_filtering_summary.md",
-                mime="text/markdown",
-            )
+        # ── Combined workbook ────────────────────────────────────────────────
+        st.subheader("Combined Workbook")
+        workbook_sheets: dict[str, list] = {"Equipment": equipment_rows, "IO_List": io_rows}
+        if soo_rows:
+            workbook_sheets["SOO"] = soo_rows
+        if source_point_rows:
+            workbook_sheets["IO_Source"] = source_point_rows
 
-        with col5:
-            st.subheader("Workflow Items")
-            workflow_items = st.session_state.workflow_items
-            if workflow_items:
+        st.download_button(
+            "specflow_all.xlsx  (Equipment + I/O List + SOO)",
+            data=tables_to_xlsx_bytes(workbook_sheets),
+            file_name="specflow_all.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            use_container_width=True,
+        )
+
+        st.divider()
+
+        # ── Debug / Advanced ────────────────────────────────────────────────
+        with st.expander("Debug / Advanced exports"):
+            st.caption("For internal review and troubleshooting — not primary deliverables.")
+            col_d1, col_d2 = st.columns(2)
+            with col_d1:
+                st.markdown("**Detection Matrix**")
                 st.download_button(
-                    label="Download Workflow Items (JSON)",
-                    data=json.dumps(workflow_items, indent=2),
-                    file_name="specflow_workflow_items.json",
+                    "detection_matrix.json",
+                    data=json.dumps(build_json_matrix(st.session_state.scored_terms), indent=2),
+                    file_name="detection_matrix.json",
                     mime="application/json",
                 )
                 st.download_button(
-                    label="Download Workflow Report (Markdown)",
-                    data=_workflow_report_markdown(workflow_items),
-                    file_name="specflow_workflow_report.md",
+                    "detection_matrix.md",
+                    data=build_markdown_matrix(st.session_state.scored_terms, mode="workflow"),
+                    file_name="detection_matrix.md",
                     mime="text/markdown",
                 )
-    else:
-        st.info("Run SpecFlow AI on the Upload tab first.")
+                st.download_button(
+                    "filtering_summary.md",
+                    data=build_filter_markdown(
+                        st.session_state.filter_results,
+                        st.session_state.template_decisions,
+                    ),
+                    file_name="filtering_summary.md",
+                    mime="text/markdown",
+                )
+            with col_d2:
+                st.markdown("**Workflow Bundle**")
+                workflow_items = st.session_state.workflow_items
+                if workflow_items:
+                    st.download_button(
+                        "workflow_items.json",
+                        data=json.dumps(workflow_items, indent=2),
+                        file_name="workflow_items.json",
+                        mime="application/json",
+                    )
+                    st.download_button(
+                        "workflow_report.md",
+                        data=_workflow_report_markdown(workflow_items),
+                        file_name="workflow_report.md",
+                        mime="text/markdown",
+                    )
+                else:
+                    st.caption("No workflow items generated.")
 
 
 with tabs[9]:
