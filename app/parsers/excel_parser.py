@@ -1,11 +1,12 @@
-"""Excel parser for SpecFlow AI.
+"""Tabular parser for SpecFlow AI.
 
-Converts .xlsx / .xls files to Markdown tables using openpyxl.
+Converts .xlsx / .xls / .csv files to Markdown tables.
 Designed for points lists, I/O schedules, and equipment schedules.
 """
 
 from __future__ import annotations
 
+import csv
 import hashlib
 from datetime import datetime, timezone
 from pathlib import Path
@@ -59,6 +60,37 @@ def _workbook_to_markdown(path: Path) -> str:
 
     wb.close()
     return "\n\n".join(sections)
+
+
+def _csv_to_markdown(path: Path) -> str:
+    """Convert a CSV file to a Markdown table."""
+    text = ""
+    for encoding in ("utf-8-sig", "utf-8", "cp1252", "latin-1"):
+        try:
+            text = path.read_text(encoding=encoding)
+            break
+        except UnicodeDecodeError:
+            continue
+
+    if not text.strip():
+        return ""
+
+    reader = csv.reader(text.splitlines())
+    rows = [[cell.strip() for cell in row] for row in reader]
+    rows = [row for row in rows if any(cell for cell in row)]
+    if not rows:
+        return ""
+
+    max_col = max(len(row) for row in rows)
+    normalized_rows = [row + [""] * (max_col - len(row)) for row in rows]
+
+    lines: list[str] = [f"## Sheet: {path.stem}", ""]
+    for index, row in enumerate(normalized_rows):
+        escaped = [cell.replace("|", "\\|") for cell in row]
+        lines.append("| " + " | ".join(escaped) + " |")
+        if index == 0:
+            lines.append("|" + "|".join(["---"] * max_col) + "|")
+    return "\n".join(lines)
 
 
 def _classify_excel(markdown: str) -> str:
@@ -126,3 +158,69 @@ def parse_excel_to_markdown(file_path: str) -> dict:
         "status": status,
         "errors": errors,
     }
+
+
+def parse_csv_to_markdown(file_path: str) -> dict:
+    """Parse a .csv file and return SpecFlow-compatible result dict."""
+    path = Path(file_path)
+    errors: list[str] = []
+    raw_markdown = ""
+    classification = "empty_or_failed_parse"
+
+    if not path.exists():
+        return {
+            "source_type": "csv",
+            "source_file": str(file_path),
+            "ingestion_engine": "python-csv",
+            "pdf_classification": "empty_or_failed_parse",
+            "raw_markdown": "",
+            "metadata": {},
+            "ocr_required": False,
+            "status": "failed",
+            "errors": [f"File not found: {file_path}"],
+        }
+
+    try:
+        raw_markdown = _csv_to_markdown(path)
+        classification = _classify_excel(raw_markdown)
+    except Exception as exc:
+        errors.append(f"CSV extraction error: {exc}")
+        classification = "empty_or_failed_parse"
+
+    file_hash = hashlib.md5(path.read_bytes()).hexdigest() if path.exists() else ""
+    metadata = {
+        "source_file": path.name,
+        "file_size_bytes": path.stat().st_size if path.exists() else 0,
+        "file_hash_md5": file_hash,
+        "ingested_at": datetime.now(timezone.utc).isoformat(),
+        "pdf_classification": classification,
+        "char_count": len(raw_markdown),
+        "word_count": len(raw_markdown.split()),
+    }
+
+    if raw_markdown:
+        OUTPUTS_RAW.mkdir(parents=True, exist_ok=True)
+        out_path = OUTPUTS_RAW / f"{path.stem}_raw.md"
+        out_path.write_text(raw_markdown, encoding="utf-8")
+
+    status = "failed" if not raw_markdown.strip() else "success"
+
+    return {
+        "source_type": "csv",
+        "source_file": path.name,
+        "ingestion_engine": "python-csv",
+        "pdf_classification": classification,
+        "raw_markdown": raw_markdown,
+        "metadata": metadata,
+        "ocr_required": False,
+        "status": status,
+        "errors": errors,
+    }
+
+
+def parse_tabular_to_markdown(file_path: str) -> dict:
+    """Route supported table-like files to the right parser."""
+    suffix = Path(file_path).suffix.lower()
+    if suffix == ".csv":
+        return parse_csv_to_markdown(file_path)
+    return parse_excel_to_markdown(file_path)

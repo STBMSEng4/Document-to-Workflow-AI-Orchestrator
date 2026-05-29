@@ -21,7 +21,7 @@ from app.extractors.workflow_extractor import extract_workflow_items
 from app.normalizers.markdown_normalizer import normalize_text
 from app.normalizers.term_normalizer import get_term_list
 from app.parsers.docx_parser import parse_docx_to_markdown
-from app.parsers.excel_parser import parse_excel_to_markdown
+from app.parsers.excel_parser import parse_tabular_to_markdown
 from app.parsers.pdf_inspector_parser import inspect_pdf
 from app.scoring.confidence_scorer import score_all_terms
 from app.scoring.detection_matrix import build_json_matrix, build_markdown_matrix
@@ -102,12 +102,12 @@ def _workflow_report_markdown(workflow_items: dict) -> str:
 tabs = st.tabs(
     [
         "Upload / Ingest",
-        "PDF / Doc Inspection",
+        "Document Inspection",
         "Raw Markdown",
         "Detection Matrix",
         "Filtering Summary",
         "Equipment",
-        "Points",
+        "I/O List",
         "Workflow Output",
         "Exports",
         "About",
@@ -136,22 +136,18 @@ with tabs[0]:
 
     input_mode = st.radio(
         "Input mode",
-        ["Upload PDF", "Upload DOCX", "Upload Excel (.xlsx)", "Paste text / Markdown"],
+        ["Upload document", "Paste text / Markdown"],
         horizontal=True,
     )
 
     uploaded_file = None
     pasted_text = ""
 
-    if input_mode in ("Upload PDF", "Upload DOCX", "Upload Excel (.xlsx)"):
-        ext_map = {
-            "Upload PDF": ["pdf"],
-            "Upload DOCX": ["docx"],
-            "Upload Excel (.xlsx)": ["xlsx", "xls"],
-        }
+    if input_mode == "Upload document":
         uploaded_file = st.file_uploader(
-            f"Upload a {input_mode.replace('Upload ', '')} file",
-            type=ext_map[input_mode],
+            "Upload PDF, Word (.docx), Excel, or CSV",
+            type=["pdf", "docx", "xlsx", "xls", "csv"],
+            help="SpecFlow currently supports PDF, Word (.docx), Excel (.xlsx/.xls), and CSV inputs.",
         )
     else:
         pasted_text = st.text_area(
@@ -169,25 +165,42 @@ with tabs[0]:
 
     if st.button("Run SpecFlow AI", type="primary"):
         with st.spinner("Ingesting, extracting, and scoring..."):
-            if input_mode == "Upload PDF" and uploaded_file:
-                with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
+            if input_mode == "Upload document" and not uploaded_file:
+                result = {
+                    "source_file": "",
+                    "pdf_classification": "empty_or_failed_parse",
+                    "raw_markdown": "",
+                    "ocr_required": False,
+                    "status": "failed",
+                    "errors": ["Upload a PDF, Word, Excel, or CSV file before running SpecFlow AI."],
+                    "metadata": {},
+                    "ingestion_engine": "none",
+                    "source_type": "none",
+                }
+            elif input_mode == "Upload document" and uploaded_file:
+                suffix = Path(uploaded_file.name).suffix.lower()
+                with tempfile.NamedTemporaryFile(suffix=suffix or ".tmp", delete=False) as tmp:
                     tmp.write(uploaded_file.read())
                     tmp_path = tmp.name
-                result = inspect_pdf(tmp_path)
 
-            elif input_mode == "Upload DOCX" and uploaded_file:
-                with tempfile.NamedTemporaryFile(suffix=".docx", delete=False) as tmp:
-                    tmp.write(uploaded_file.read())
-                    tmp_path = tmp.name
-                result = parse_docx_to_markdown(tmp_path)
-
-            elif input_mode == "Upload Excel (.xlsx)" and uploaded_file:
-                suffix = ".xlsx" if uploaded_file.name.endswith("xlsx") else ".xls"
-                with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
-                    tmp.write(uploaded_file.read())
-                    tmp_path = tmp.name
-                result = parse_excel_to_markdown(tmp_path)
-
+                if suffix == ".pdf":
+                    result = inspect_pdf(tmp_path)
+                elif suffix == ".docx":
+                    result = parse_docx_to_markdown(tmp_path)
+                elif suffix in {".xlsx", ".xls", ".csv"}:
+                    result = parse_tabular_to_markdown(tmp_path)
+                else:
+                    result = {
+                        "source_file": uploaded_file.name,
+                        "pdf_classification": "empty_or_failed_parse",
+                        "raw_markdown": "",
+                        "ocr_required": False,
+                        "status": "failed",
+                        "errors": [f"Unsupported file type: {suffix or 'unknown'}"],
+                        "metadata": {},
+                        "ingestion_engine": "none",
+                        "source_type": "none",
+                    }
             else:
                 result = {
                     "source_file": "pasted_text",
@@ -340,7 +353,7 @@ with tabs[5]:
         col3.metric("Review Required", review_counter)
 
         st.caption(f"Type mix: {_counter_markdown(type_counter)}")
-        st.dataframe(equipment_df, use_container_width=True)
+        st.dataframe(equipment_df, width="stretch")
     else:
         st.info("No structured equipment records were extracted from the current document.")
 
@@ -366,10 +379,10 @@ with tabs[6]:
 
         if point_records:
             with st.expander(f"Source Points ({len(point_records)})", expanded=False):
-                st.dataframe(rows_to_dataframe(extracted_rows), use_container_width=True)
+                st.dataframe(rows_to_dataframe(extracted_rows), width="stretch")
 
         with st.expander(f"Final Points ({len(merged_point_records)})", expanded=True):
-            st.dataframe(rows_to_dataframe(merged_rows), use_container_width=True)
+            st.dataframe(rows_to_dataframe(merged_rows), width="stretch")
     else:
         st.info("No structured points were extracted from the current document.")
 
@@ -397,7 +410,7 @@ with tabs[7]:
 
         if workflow_items.get("points"):
             with st.expander(f"Points List Candidates ({len(workflow_items['points'])})", expanded=True):
-                st.dataframe(workflow_items["points"], use_container_width=True)
+                st.dataframe(workflow_items["points"], width="stretch")
 
         if workflow_items.get("rfis"):
             with st.expander(f"RFI Items ({len(workflow_items['rfis'])})"):
@@ -419,7 +432,7 @@ with tabs[7]:
 
         if workflow_items.get("cx_items"):
             with st.expander(f"Commissioning Checklist ({len(workflow_items['cx_items'])})"):
-                st.dataframe(workflow_items["cx_items"], use_container_width=True)
+                st.dataframe(workflow_items["cx_items"], width="stretch")
 
         if workflow_items.get("cad_tasks"):
             with st.expander(f"CAD Tasks ({len(workflow_items['cad_tasks'])})"):
@@ -444,7 +457,7 @@ with tabs[7]:
                 }
                 for term in allowed
             ]
-            st.dataframe(rows, use_container_width=True)
+            st.dataframe(rows, width="stretch")
         else:
             st.info("No items passed the workflow threshold.")
     else:

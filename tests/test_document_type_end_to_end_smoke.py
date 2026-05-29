@@ -9,7 +9,7 @@ from app.extractors.points_list_extractor import extract_point_records
 from app.extractors.template_fallback_merge import merge_point_records_with_template_defaults
 from app.normalizers.markdown_normalizer import normalize_text
 from app.parsers.docx_parser import parse_docx_to_markdown
-from app.parsers.excel_parser import parse_excel_to_markdown
+from app.parsers.excel_parser import parse_excel_to_markdown, parse_tabular_to_markdown
 from app.parsers.pdf_inspector_parser import inspect_pdf
 
 
@@ -156,6 +156,31 @@ class DocumentTypeEndToEndSmokeTests(unittest.TestCase):
 
             equipment, points, merged_points = self._run_pipeline(result["raw_markdown"])
             self._assert_pipeline_outputs(equipment, points, merged_points)
+
+    def test_end_to_end_csv(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="specflow_csv_smoke_") as tmpdir:
+            path = Path(tmpdir) / "sample.csv"
+            path.write_text(
+                "\n".join(
+                    [
+                        "Equipment Tag,Point Name,Abbr,IO Type,Unit,Description",
+                        "AHU-1,Supply Air Temperature,SAT,AI,degF,AHU-1 discharge air sensor",
+                        "RTU-2,Space Temperature,ZN-T,AI,degF,RTU-2 space temperature sensor",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+
+            result = parse_tabular_to_markdown(str(path))
+            self.assertEqual(result["status"], "success")
+            self.assertEqual(result["source_type"], "csv")
+
+            equipment, points, merged_points = self._run_pipeline(
+                SAMPLE_TEXT.split("## Controls Points", 1)[0] + "## Controls Points\n\n" + result["raw_markdown"]
+            )
+            self.assertEqual(len(points), 2)
+            self.assertGreater(len(merged_points), len(points))
+            self.assertEqual({point.equipment_tag for point in points}, {"AHU-1", "RTU-2"})
 
     def test_end_to_end_pdf_text_based(self) -> None:
         with tempfile.TemporaryDirectory(prefix="specflow_pdf_smoke_") as tmpdir:
