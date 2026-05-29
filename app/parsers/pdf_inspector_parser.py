@@ -187,6 +187,24 @@ def _run_ocr_fallback_chain(file_path: str) -> tuple[str, str | None, list[str]]
     return "", None, errors
 
 
+def _looks_like_missed_point_list(markdown_text: str) -> bool:
+    from app.extractors.points_list_extractor import extract_point_records
+
+    lower = markdown_text.lower()
+    point_list_hints = (
+        "bas point list",
+        "point description",
+        "point type",
+        "field device type",
+        "alarm to bas",
+        "i/o list",
+        "io list",
+    )
+    if not any(hint in lower for hint in point_list_hints):
+        return False
+    return len(extract_point_records(markdown_text)) == 0
+
+
 def build_pdf_metadata(
     file_path: str,
     raw_markdown: str,
@@ -306,6 +324,19 @@ def inspect_pdf(file_path: str) -> dict:
         else:
             errors.append(
                 "PDF appears to be scanned or image-heavy. OCR text is required before workflow extraction can continue."
+            )
+
+    should_rescue_points = bool(raw_markdown) and not ocr_applied and _looks_like_missed_point_list(raw_markdown)
+    if should_rescue_points:
+        ocr_text, selected_engine, ocr_errors = _run_ocr_fallback_chain(str(path))
+        errors.extend(ocr_errors)
+
+        if ocr_text:
+            raw_markdown = f"{raw_markdown.strip()}\n\n{ocr_text}".strip()
+            ocr_applied = True
+            ocr_engine = selected_engine
+            errors.append(
+                f"Applied OCR fallback via {selected_engine.title()} to recover likely missed point-list content."
             )
 
     status = "ocr_required" if ocr_needed and not raw_markdown else ("failed" if not raw_markdown else "success")
